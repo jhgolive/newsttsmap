@@ -21,6 +21,16 @@ function toProxyPath(fullUrl) {
   return "/proxy/" + encodeURIComponent(fullUrl);
 }
 
+// CSS 내부 url(...) 치환
+function rewriteCssUrls(cssText, base) {
+  return cssText.replace(/url\(([^)]+)\)/g, (match, p1) => {
+    let urlStr = p1.trim().replace(/['"]/g, "");
+    if (/^data:/.test(urlStr)) return match; // data URI는 그대로
+    const abs = makeAbsolute(urlStr, base);
+    return `url(${toProxyPath(abs)})`;
+  });
+}
+
 // CORS 허용
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -67,13 +77,33 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
         });
       });
 
+      // CSS 내부 url(...) 치환
+      $("style").each((i, el) => {
+        const cssText = $(el).html();
+        $(el).html(rewriteCssUrls(cssText, base));
+      });
+
+      $("link[rel='stylesheet']").each((i, el) => {
+        const href = $(el).attr("href");
+        if (!href) return;
+        const abs = makeAbsolute(href, base);
+        $(el).attr("href", toProxyPath(abs));
+      });
+
       // CSP 제거
       $("meta[http-equiv='Content-Security-Policy']").remove();
 
       res.set("content-type", "text/html; charset=utf-8");
       res.send($.html());
+    } else if (contentType.includes("text/css")) {
+      // CSS 파일 자체 처리
+      let cssText = await resp.text();
+      const base = targetUrl;
+      cssText = rewriteCssUrls(cssText, base);
+      res.set("content-type", "text/css; charset=utf-8");
+      res.send(cssText);
     } else {
-      // JS, CSS, 이미지 등 정적 파일 처리
+      // JS, 이미지 등 정적 파일 처리
       res.set("content-type", contentType);
       const buffer = await resp.buffer();
       res.send(buffer);
