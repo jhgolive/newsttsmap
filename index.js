@@ -59,7 +59,6 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
       const $ = cheerio.load(text, { decodeEntities: false });
       const base = targetUrl;
 
-      // HTML 내 링크/스크립트/이미지/iframe/form 변환
       const selAttr = [
         ["a", "href"],
         ["link", "href"],
@@ -78,7 +77,6 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
         });
       });
 
-      // CSS 내부 url(...) 치환
       $("style").each((i, el) => {
         const cssText = $(el).html();
         $(el).html(rewriteCssUrls(cssText, base));
@@ -91,7 +89,6 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
         $(el).attr("href", toProxyPath(abs));
       });
 
-      // CSP 제거
       $("meta[http-equiv='Content-Security-Policy']").remove();
 
       res.set("content-type", "text/html; charset=utf-8");
