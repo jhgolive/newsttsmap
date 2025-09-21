@@ -3,6 +3,7 @@ const express = require("express");
 const fetch = require("node-fetch"); // v2
 const cheerio = require("cheerio");
 const { URL } = require("url");
+const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,7 +26,7 @@ function toProxyPath(fullUrl) {
 function rewriteCssUrls(cssText, base) {
   return cssText.replace(/url\(([^)]+)\)/g, (match, p1) => {
     let urlStr = p1.trim().replace(/['"]/g, "");
-    if (/^data:/.test(urlStr)) return match; // data URI는 그대로
+    if (/^data:/.test(urlStr)) return match;
     const abs = makeAbsolute(urlStr, base);
     return `url(${toProxyPath(abs)})`;
   });
@@ -58,7 +59,7 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
       const $ = cheerio.load(text, { decodeEntities: false });
       const base = targetUrl;
 
-      // HTML 내 링크/스크립트/이미지/iframe/form 등 변환
+      // HTML 내 링크/스크립트/이미지/iframe/form 변환
       const selAttr = [
         ["a", "href"],
         ["link", "href"],
@@ -96,14 +97,12 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
       res.set("content-type", "text/html; charset=utf-8");
       res.send($.html());
     } else if (contentType.includes("text/css")) {
-      // CSS 파일 자체 처리
       let cssText = await resp.text();
       const base = targetUrl;
       cssText = rewriteCssUrls(cssText, base);
       res.set("content-type", "text/css; charset=utf-8");
       res.send(cssText);
     } else {
-      // JS, 이미지 등 정적 파일
       res.set("content-type", contentType);
       const buffer = await resp.buffer();
       res.send(buffer);
@@ -114,9 +113,9 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
   }
 });
 
+// Firebase pointer HTML 제공
 app.get("/", (req, res) => {
-  res.send(`<h3>Proxy Running</h3>
-  <p>예: <a href="/proxy/${encodeURIComponent("https://ainews1.co.kr")}">/proxy/ainews1.co.kr</a></p>`);
+  res.sendFile(path.join(__dirname, "receiver.html"));
 });
 
 app.listen(PORT, () => console.log(`Listening on ${PORT}`));
