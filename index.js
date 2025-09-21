@@ -19,6 +19,13 @@ function toProxyPath(fullUrl) {
   return "/proxy/" + encodeURIComponent(fullUrl);
 }
 
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  next();
+});
+
 app.get("/proxy/:encoded(*)", async (req, res) => {
   const encoded = req.params.encoded;
   const targetUrl = decodeURIComponent(encoded);
@@ -80,6 +87,7 @@ app.get("/", (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Listening on ${PORT}`));
+
 
 
 
