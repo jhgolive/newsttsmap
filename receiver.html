@@ -6,15 +6,15 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
-body { margin:0; height:100vh; background:black; overflow:hidden; }
+body { margin:0; height:100vh; overflow:hidden; }
 #pointer { position:absolute; width:12px; height:20px; background:white;
 clip-path: polygon(0 0, 100% 50%, 0 100%, 25% 50%);
 pointer-events:none; transition:left 0.05s linear, top 0.05s linear, background 0.1s; z-index:9999; }
-iframe { width:100%; height:100%; border:none; }
+#site-container { width:100%; height:100%; overflow:auto; position:relative; }
 </style>
 </head>
 <body>
-<iframe id="targetFrame" src="/proxy/https://ainews1.co.kr"></iframe>
+<div id="site-container"></div>
 <div id="pointer"></div>
 <script>
 const firebaseConfig = {
@@ -30,7 +30,16 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const pointerRef = db.ref('pointer');
 const pointer = document.getElementById('pointer');
+const container = document.getElementById('site-container');
 
+// 프록시 HTML 불러오기
+fetch("/proxy/https://ainews1.co.kr")
+.then(res => res.text())
+.then(html => {
+  container.innerHTML = html;
+});
+
+// 포인터 클릭
 pointerRef.on('value', snapshot => {
   const data = snapshot.val();
   if(!data) return;
@@ -41,7 +50,7 @@ pointerRef.on('value', snapshot => {
   if(data.click){
     pointer.style.background='red';
     setTimeout(()=>pointer.style.background='white',100);
-    const target = document.elementFromPoint(x,y);
+    const target = document.elementFromPoint(x, y);
     if(target && target!==pointer) target.click();
   }
 });
