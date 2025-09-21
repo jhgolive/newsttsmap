@@ -2,7 +2,6 @@ const express = require("express");
 const fetch = require("node-fetch"); // v2
 const cheerio = require("cheerio");
 const { URL } = require("url");
-const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,8 +30,6 @@ function rewriteCssUrls(cssText, base) {
 // CORS 허용
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   next();
 });
 
@@ -50,7 +47,7 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
     const resp = await fetch(targetUrl, { headers, redirect: "follow" });
     const contentType = resp.headers.get("content-type") || "";
 
-    // 🔹 없는 JS/CSS 파일 처리
+    // 없는 JS/CSS 처리
     if (resp.status === 404) {
       if (targetUrl.endsWith(".js")) {
         res.set("content-type", "application/javascript");
@@ -64,10 +61,11 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
     }
 
     if (contentType.includes("text/html")) {
-      let text = await resp.text();
-      const $ = cheerio.load(text, { decodeEntities: false });
+      let html = await resp.text();
+      const $ = cheerio.load(html, { decodeEntities: false });
       const base = targetUrl;
 
+      // HTML 내 모든 링크, script, img, iframe, form, source 경로 변환
       const selAttr = [
         ["a", "href"], ["link", "href"], ["script", "src"],
         ["img", "src"], ["iframe", "src"], ["form", "action"],
@@ -82,26 +80,20 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
         });
       });
 
+      // style 태그 CSS 경로 변환
       $("style").each((i, el) => {
         const cssText = $(el).html();
         $(el).html(rewriteCssUrls(cssText, base));
       });
 
-      $("link[rel='stylesheet']").each((i, el) => {
-        const href = $(el).attr("href");
-        if (!href) return;
-        const abs = makeAbsolute(href, base);
-        $(el).attr("href", toProxyPath(abs));
-      });
-
+      // CSP 제거
       $("meta[http-equiv='Content-Security-Policy']").remove();
 
       res.set("content-type", "text/html; charset=utf-8");
       res.send($.html());
     } else if (contentType.includes("text/css")) {
       let cssText = await resp.text();
-      const base = targetUrl;
-      cssText = rewriteCssUrls(cssText, base);
+      cssText = rewriteCssUrls(cssText, targetUrl);
       res.set("content-type", "text/css; charset=utf-8");
       res.send(cssText);
     } else {
@@ -115,9 +107,9 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
   }
 });
 
-// Firebase pointer HTML 제공
+// 메인 페이지 (Firebase 포인터)
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "receiver.html"));
+  res.sendFile(__dirname + "/receiver.html");
 });
 
 app.listen(PORT, () => console.log(`Listening on ${PORT}`));
