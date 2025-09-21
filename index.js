@@ -79,4 +79,6 @@ app.get("/", (req, res) => {
   )}">/proxy/ainews1.co.kr</a></p>`);
 });
 
+const PORT = process.env.PORT || 3000;  // 3000은 로컬 테스트용 기본값
 app.listen(PORT, () => console.log(`Listening on ${PORT}`));
+
