@@ -7,18 +7,21 @@ const { URL } = require("url");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 절대 URL로 변환
 function makeAbsolute(url, base) {
   try {
     return new URL(url, base).toString();
-  } catch (e) {
+  } catch {
     return url;
   }
 }
 
+// 프록시 경로로 변환
 function toProxyPath(fullUrl) {
   return "/proxy/" + encodeURIComponent(fullUrl);
 }
 
+// CORS 허용
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
@@ -26,6 +29,7 @@ app.use((req, res, next) => {
   next();
 });
 
+// 프록시 처리
 app.get("/proxy/:encoded(*)", async (req, res) => {
   const encoded = req.params.encoded;
   const targetUrl = decodeURIComponent(encoded);
@@ -44,6 +48,7 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
       const $ = cheerio.load(text, { decodeEntities: false });
       const base = targetUrl;
 
+      // HTML 내 모든 링크/스크립트/이미지/폼/iframe 변환
       const selAttr = [
         ["a", "href"],
         ["link", "href"],
@@ -62,32 +67,26 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
         });
       });
 
+      // CSP 제거
       $("meta[http-equiv='Content-Security-Policy']").remove();
 
       res.set("content-type", "text/html; charset=utf-8");
       res.send($.html());
     } else {
+      // JS, CSS, 이미지 등 정적 파일 처리
       res.set("content-type", contentType);
       const buffer = await resp.buffer();
-      const len = resp.headers.get("content-length");
-      if (len) res.set("content-length", len);
       res.send(buffer);
     }
   } catch (err) {
-    console.error("proxy error", err);
+    console.error("Proxy error:", err);
     res.status(500).send("Proxy error: " + err.message);
   }
 });
 
 app.get("/", (req, res) => {
   res.send(`<h3>Proxy Running</h3>
-  <p>예: <a href="/proxy/${encodeURIComponent(
-    "https://ainews1.co.kr"
-  )}">/proxy/ainews1.co.kr</a></p>`);
+  <p>예: <a href="/proxy/${encodeURIComponent("https://ainews1.co.kr")}">/proxy/ainews1.co.kr</a></p>`);
 });
 
 app.listen(PORT, () => console.log(`Listening on ${PORT}`));
-
-
-
-
