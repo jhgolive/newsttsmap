@@ -7,7 +7,7 @@ const { URL } = require("url");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 절대 URL로 변환
+// 절대 URL 변환
 function makeAbsolute(url, base) {
   try {
     return new URL(url, base).toString();
@@ -16,7 +16,7 @@ function makeAbsolute(url, base) {
   }
 }
 
-// 프록시 경로로 변환
+// 프록시 경로 변환
 function toProxyPath(fullUrl) {
   return "/proxy/" + encodeURIComponent(fullUrl);
 }
@@ -58,7 +58,7 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
       const $ = cheerio.load(text, { decodeEntities: false });
       const base = targetUrl;
 
-      // HTML 내 모든 링크/스크립트/이미지/폼/iframe 변환
+      // HTML 내 링크/스크립트/이미지/iframe/form 등 변환
       const selAttr = [
         ["a", "href"],
         ["link", "href"],
@@ -103,7 +103,7 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
       res.set("content-type", "text/css; charset=utf-8");
       res.send(cssText);
     } else {
-      // JS, 이미지 등 정적 파일 처리
+      // JS, 이미지 등 정적 파일
       res.set("content-type", contentType);
       const buffer = await resp.buffer();
       res.send(buffer);
