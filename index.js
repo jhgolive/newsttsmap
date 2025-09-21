@@ -1,4 +1,3 @@
-// index.js
 const express = require("express");
 const fetch = require("node-fetch"); // v2
 const cheerio = require("cheerio");
@@ -53,6 +52,19 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
 
     const resp = await fetch(targetUrl, { headers, redirect: "follow" });
     const contentType = resp.headers.get("content-type") || "";
+
+    if (resp.status === 404) {
+      // 🔹 없는 JS/CSS 파일은 빈 파일로 반환
+      if (targetUrl.endsWith(".js")) {
+        res.set("content-type", "application/javascript");
+        return res.send("// file not found");
+      }
+      if (targetUrl.endsWith(".css")) {
+        res.set("content-type", "text/css");
+        return res.send("/* file not found */");
+      }
+      return res.status(404).send("Not found");
+    }
 
     if (contentType.includes("text/html")) {
       let text = await resp.text();
