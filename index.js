@@ -73,12 +73,13 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
 });
 
 app.get("/", (req, res) => {
-  res.send(`<h3>Simple Proxy Running</h3>
+  res.send(`<h3>Proxy Running</h3>
   <p>예: <a href="/proxy/${encodeURIComponent(
     "https://ainews1.co.kr"
   )}">/proxy/ainews1.co.kr</a></p>`);
 });
 
 app.listen(PORT, () => console.log(`Listening on ${PORT}`));
+
 
 
