@@ -9,11 +9,8 @@ const PORT = process.env.PORT || 3000;
 
 // 절대 URL 변환
 function makeAbsolute(url, base) {
-  try {
-    return new URL(url, base).toString();
-  } catch {
-    return url;
-  }
+  try { return new URL(url, base).toString(); }
+  catch { return url; }
 }
 
 // 프록시 경로 변환
@@ -53,8 +50,8 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
     const resp = await fetch(targetUrl, { headers, redirect: "follow" });
     const contentType = resp.headers.get("content-type") || "";
 
+    // 🔹 없는 JS/CSS 파일 처리
     if (resp.status === 404) {
-      // 🔹 없는 JS/CSS 파일은 빈 파일로 반환
       if (targetUrl.endsWith(".js")) {
         res.set("content-type", "application/javascript");
         return res.send("// file not found");
@@ -72,12 +69,8 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
       const base = targetUrl;
 
       const selAttr = [
-        ["a", "href"],
-        ["link", "href"],
-        ["script", "src"],
-        ["img", "src"],
-        ["iframe", "src"],
-        ["form", "action"],
+        ["a", "href"], ["link", "href"], ["script", "src"],
+        ["img", "src"], ["iframe", "src"], ["form", "action"],
         ["source", "src"],
       ];
       selAttr.forEach(([sel, attr]) => {
