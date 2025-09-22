@@ -8,8 +8,11 @@ const PORT = process.env.PORT || 3000;
 
 // 절대 URL 변환
 function makeAbsolute(url, base) {
-  try { return new URL(url, base).toString(); }
-  catch { return url; }
+  try {
+    return new URL(url, base).toString();
+  } catch {
+    return url;
+  }
 }
 
 // 프록시 경로 변환
@@ -21,7 +24,8 @@ function toProxyPath(fullUrl) {
 function rewriteCssUrls(cssText, base) {
   return cssText.replace(/url\(([^)]+)\)/g, (match, p1) => {
     let urlStr = p1.trim().replace(/['"]/g, "");
-    if (/^data:/.test(urlStr)) return match;
+    if (/^data:/.test(urlStr)) return match; // data URI 무시
+    if (urlStr.startsWith("about:")) return "url(about:blank)";
     const abs = makeAbsolute(urlStr, base);
     return `url(${toProxyPath(abs)})`;
   });
@@ -37,6 +41,12 @@ app.use((req, res, next) => {
 app.get("/proxy/:encoded(*)", async (req, res) => {
   const encoded = req.params.encoded;
   const targetUrl = decodeURIComponent(encoded);
+
+  // about:blank 같은 내부 URL 처리
+  if (targetUrl.startsWith("about:")) {
+    res.set("content-type", "text/html; charset=utf-8");
+    return res.send("<!DOCTYPE html><title>about:blank</title>");
+  }
 
   try {
     const headers = {
@@ -65,7 +75,7 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
       const $ = cheerio.load(html, { decodeEntities: false });
       const base = targetUrl;
 
-      // HTML 내 모든 링크, script, img, iframe, form, source 경로 변환
+      // HTML 내 모든 링크/스크립트/이미지/폼 등 경로 변환
       const selAttr = [
         ["a", "href"], ["link", "href"], ["script", "src"],
         ["img", "src"], ["iframe", "src"], ["form", "action"],
@@ -75,7 +85,9 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
         $(sel).each((i, el) => {
           const old = $(el).attr(attr);
           if (!old) return;
+          if (old.startsWith("about:")) return; // 무시
           const abs = makeAbsolute(old, base);
+          if (!/^https?:/i.test(abs)) return; // 잘못된 URL 무시
           $(el).attr(attr, toProxyPath(abs));
         });
       });
@@ -83,7 +95,7 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
       // style 태그 CSS 경로 변환
       $("style").each((i, el) => {
         const cssText = $(el).html();
-        $(el).html(rewriteCssUrls(cssText, base));
+        if (cssText) $(el).html(rewriteCssUrls(cssText, base));
       });
 
       // CSP 제거
