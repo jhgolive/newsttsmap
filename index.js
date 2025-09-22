@@ -1,13 +1,16 @@
 import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
+import cors from "cors"; // cors 패키지 추가
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// /news?query=검색어
+// 모든 도메인 허용
+app.use(cors());
+
 app.get("/news", async (req, res) => {
   const query = req.query.query || "삼성";
   const display = req.query.display || 5;
