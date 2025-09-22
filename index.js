@@ -8,8 +8,11 @@ const PORT = process.env.PORT || 3000;
 
 // 절대 URL 변환
 function makeAbsolute(url, base) {
-  try { return new URL(url, base).toString(); }
-  catch { return url; }
+  try { 
+    return new URL(url, base).toString(); 
+  } catch {
+    return url;
+  }
 }
 
 // 프록시 경로 변환
@@ -23,8 +26,8 @@ function rewriteCssUrls(cssText, base) {
     let urlStr = p1.trim().replace(/['"]/g, "");
     if (/^data:/.test(urlStr)) return match;
     const abs = makeAbsolute(urlStr, base);
-    if (/^https?:\/\//i.test(abs)) return `url(${toProxyPath(abs)})`;
-    return match; // http/https 아닌 URL은 그대로
+    if (!/^https?:\/\//i.test(abs)) return match; // HTTP/HTTPS만 proxy
+    return `url(${toProxyPath(abs)})`;
   });
 }
 
@@ -36,12 +39,15 @@ app.use((req, res, next) => {
 
 // 프록시 처리
 app.get("/proxy/:encoded(*)", async (req, res) => {
-  const encoded = req.params.encoded;
-  const targetUrl = decodeURIComponent(encoded);
+  let targetUrl;
+  try {
+    targetUrl = new URL(decodeURIComponent(req.params.encoded));
+  } catch {
+    return res.status(400).send("Invalid URL");
+  }
 
-  // HTTP/HTTPS 체크
-  if (!/^https?:\/\//i.test(targetUrl)) {
-    return res.status(400).send("Invalid URL: Only HTTP/HTTPS supported");
+  if (!["http:", "https:"].includes(targetUrl.protocol)) {
+    return res.status(400).send("Only HTTP(S) URLs supported");
   }
 
   try {
@@ -50,16 +56,16 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
       Accept: req.get("Accept") || "*/*",
     };
 
-    const resp = await fetch(targetUrl, { headers, redirect: "follow" });
+    const resp = await fetch(targetUrl.toString(), { headers, redirect: "follow" });
     const contentType = resp.headers.get("content-type") || "";
 
-    // 404 처리
+    // 없는 JS/CSS 처리
     if (resp.status === 404) {
-      if (targetUrl.endsWith(".js")) {
+      if (targetUrl.pathname.endsWith(".js")) {
         res.set("content-type", "application/javascript");
         return res.send("// file not found");
       }
-      if (targetUrl.endsWith(".css")) {
+      if (targetUrl.pathname.endsWith(".css")) {
         res.set("content-type", "text/css");
         return res.send("/* file not found */");
       }
@@ -69,7 +75,7 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
     if (contentType.includes("text/html")) {
       let html = await resp.text();
       const $ = cheerio.load(html, { decodeEntities: false });
-      const base = targetUrl;
+      const base = targetUrl.toString();
 
       // HTML 내 모든 링크, script, img, iframe, form, source 경로 변환
       const selAttr = [
@@ -77,7 +83,6 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
         ["img", "src"], ["iframe", "src"], ["form", "action"],
         ["source", "src"],
       ];
-
       selAttr.forEach(([sel, attr]) => {
         $(sel).each((i, el) => {
           const old = $(el).attr(attr);
@@ -100,13 +105,11 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
 
       res.set("content-type", "text/html; charset=utf-8");
       res.send($.html());
-
     } else if (contentType.includes("text/css")) {
       let cssText = await resp.text();
-      cssText = rewriteCssUrls(cssText, targetUrl);
+      cssText = rewriteCssUrls(cssText, targetUrl.toString());
       res.set("content-type", "text/css; charset=utf-8");
       res.send(cssText);
-
     } else {
       res.set("content-type", contentType);
       const buffer = await resp.buffer();
