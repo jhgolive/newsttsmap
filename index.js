@@ -1,14 +1,10 @@
 import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
-import cors from "cors"; // cors 패키지 추가
+import cors from "cors";
 
 dotenv.config();
-
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-// 모든 도메인 허용
 app.use(cors());
 
 app.get("/news", async (req, res) => {
@@ -32,4 +28,5 @@ app.get("/news", async (req, res) => {
   }
 });
 
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
