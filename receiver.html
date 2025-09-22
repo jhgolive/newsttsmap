@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>Receiver with Pointer</title>
+<title>Receiver with Pointer & Multi-page</title>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
@@ -11,11 +11,19 @@ body { margin:0; height:100vh; overflow:hidden; }
 clip-path: polygon(0 0, 100% 50%, 0 100%, 25% 50%);
 pointer-events:none; transition:left 0.05s linear, top 0.05s linear, background 0.1s; z-index:9999; }
 #site-container { width:100%; height:100%; overflow:auto; position:relative; }
+#nav { position:absolute; top:10px; right:10px; z-index:10000; background:rgba(0,0,0,0.5); padding:5px; border-radius:5px; }
+#nav button { margin:2px; }
 </style>
 </head>
 <body>
 <div id="site-container"></div>
 <div id="pointer"></div>
+<div id="nav">
+  <button onclick="loadSite('https://www.ainews1.co.kr/news/articleView.html?idxno=16581')">페이지1</button>
+  <button onclick="loadSite('https://www.ainews1.co.kr/news/articleView.html?idxno=16582')">페이지2</button>
+  <button onclick="loadSite('https://www.ainews1.co.kr/news/articleView.html?idxno=16583')">페이지3</button>
+</div>
+
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyAQGtOEcxFxl9FV7NASLgxLDc23u2vzS_0",
@@ -29,26 +37,23 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const pointerRef = db.ref('pointer');
+
 const pointer = document.getElementById('pointer');
 const container = document.getElementById('site-container');
 
-async function loadSite(url) {
-  try {
-    const res = await fetch(`https://your-railway-app.up.railway.app/proxy/${encodeURIComponent(url)}`);
-    let html = await res.text();
-    // 상대경로 해결용 <base> 태그 삽입
-    html = `<base href="${url}">` + html;
+async function loadSite(url){
+  try{
+    const res = await fetch(`/proxy/${encodeURIComponent(url)}`);
+    const html = await res.text();
     container.innerHTML = html;
-  } catch(err) {
-    console.error('사이트 로드 실패:', err);
-  }
+  }catch(err){ console.error('사이트 로드 실패:', err); }
 }
 
-// 원하는 사이트 불러오기
-loadSite('https://ainews1.co.kr');
+// 초기 페이지 로드
+loadSite('https://www.ainews1.co.kr/news/articleView.html?idxno=16581');
 
 // 포인터 이동 & 클릭
-pointerRef.on('value', snapshot => {
+pointerRef.on('value', snapshot=>{
   const data = snapshot.val();
   if(!data) return;
 
@@ -62,12 +67,8 @@ pointerRef.on('value', snapshot => {
   if(data.click){
     pointer.style.background='red';
     setTimeout(()=>pointer.style.background='white',100);
-
-    // 실제 클릭 요소 찾기
-    const target = document.elementFromPoint(x, y);
-    if(target && target!==pointer) {
-      target.click();
-    }
+    const target = document.elementFromPoint(x,y);
+    if(target && target!==pointer) target.click();
   }
 });
 </script>
