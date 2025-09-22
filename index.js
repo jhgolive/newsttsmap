@@ -7,7 +7,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 예: /news?query=삼성
+// /news?query=검색어
 app.get("/news", async (req, res) => {
   const query = req.query.query || "삼성";
   const display = req.query.display || 5;
@@ -17,12 +17,12 @@ app.get("/news", async (req, res) => {
   try {
     const response = await fetch(url, {
       headers: {
-        "X-Naver-Client-Id": process.env.wdNCtT2aUZppI_i9vERx,
-        "X-Naver-Client-Secret": process.env.slwc7hndy3
+        "X-Naver-Client-Id": process.env.NAVER_CLIENT_ID,
+        "X-Naver-Client-Secret": process.env.NAVER_CLIENT_SECRET
       }
     });
     const data = await response.json();
-    res.json(data); // JSON 그대로 반환
+    res.json(data);
   } catch (err) {
     console.error(err);
     res.status(500).send("API 호출 중 오류 발생");
