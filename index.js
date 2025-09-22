@@ -1,127 +1,62 @@
-const express = require("express");
-const fetch = require("node-fetch"); // v2
-const cheerio = require("cheerio");
-const { URL } = require("url");
+import express from "express";
+import { createProxyMiddleware } from "http-proxy-middleware";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// 절대 URL 변환
-function makeAbsolute(url, base) {
-  try {
-    return new URL(url, base).toString();
-  } catch {
-    return url;
-  }
-}
+// 프록시 제외할 URL 패턴들
+const skipProxy = [
+  "about:blank",
+  "chrome-extension://",
+  "wcs.naver.com",
+  "nam.veta.naver.com",
+  "google-analytics.com"
+];
 
-// 프록시 경로 변환
-function toProxyPath(fullUrl) {
-  return "/proxy/" + encodeURIComponent(fullUrl);
-}
-
-// CSS 내부 url(...) 치환
-function rewriteCssUrls(cssText, base) {
-  return cssText.replace(/url\(([^)]+)\)/g, (match, p1) => {
-    let urlStr = p1.trim().replace(/['"]/g, "");
-    if (/^data:/.test(urlStr)) return match; // data URI 무시
-    if (urlStr.startsWith("about:")) return "url(about:blank)";
-    const abs = makeAbsolute(urlStr, base);
-    return `url(${toProxyPath(abs)})`;
-  });
-}
-
-// CORS 허용
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  next();
-});
-
-// 프록시 처리
-app.get("/proxy/:encoded(*)", async (req, res) => {
-  const encoded = req.params.encoded;
-  const targetUrl = decodeURIComponent(encoded);
-
-  // about:blank 같은 내부 URL 처리
-  if (targetUrl.startsWith("about:")) {
-    res.set("content-type", "text/html; charset=utf-8");
-    return res.send("<!DOCTYPE html><title>about:blank</title>");
-  }
+// 프록시 라우터
+app.use("/proxy", (req, res, next) => {
+  const targetUrl = req.url.replace(/^\/proxy\//, "");
 
   try {
-    const headers = {
-      "User-Agent": req.get("User-Agent") || "node-proxy",
-      Accept: req.get("Accept") || "*/*",
-    };
+    const decodedUrl = decodeURIComponent(targetUrl);
 
-    const resp = await fetch(targetUrl, { headers, redirect: "follow" });
-    const contentType = resp.headers.get("content-type") || "";
-
-    // 없는 JS/CSS 처리
-    if (resp.status === 404) {
-      if (targetUrl.endsWith(".js")) {
-        res.set("content-type", "application/javascript");
-        return res.send("// file not found");
-      }
-      if (targetUrl.endsWith(".css")) {
-        res.set("content-type", "text/css");
-        return res.send("/* file not found */");
-      }
-      return res.status(404).send("Not found");
+    // 제외 규칙: 프록시를 안 태우고 바로 리다이렉트
+    if (skipProxy.some(pattern => decodedUrl.startsWith(pattern))) {
+      console.log("프록시 제외:", decodedUrl);
+      return res.redirect(decodedUrl);
     }
 
-    if (contentType.includes("text/html")) {
-      let html = await resp.text();
-      const $ = cheerio.load(html, { decodeEntities: false });
-      const base = targetUrl;
+    // 실제 프록시 처리
+    return createProxyMiddleware({
+      target: decodedUrl,
+      changeOrigin: true,
+      selfHandleResponse: false,
 
-      // HTML 내 모든 링크/스크립트/이미지/폼 등 경로 변환
-      const selAttr = [
-        ["a", "href"], ["link", "href"], ["script", "src"],
-        ["img", "src"], ["iframe", "src"], ["form", "action"],
-        ["source", "src"],
-      ];
-      selAttr.forEach(([sel, attr]) => {
-        $(sel).each((i, el) => {
-          const old = $(el).attr(attr);
-          if (!old) return;
-          if (old.startsWith("about:")) return; // 무시
-          const abs = makeAbsolute(old, base);
-          if (!/^https?:/i.test(abs)) return; // 잘못된 URL 무시
-          $(el).attr(attr, toProxyPath(abs));
-        });
-      });
+      onProxyReq: (proxyReq, req, res) => {
+        // 원본 헤더 제거 → CORS 문제 줄이기
+        proxyReq.removeHeader("origin");
+      },
 
-      // style 태그 CSS 경로 변환
-      $("style").each((i, el) => {
-        const cssText = $(el).html();
-        if (cssText) $(el).html(rewriteCssUrls(cssText, base));
-      });
+      onError: (err, req, res) => {
+        console.error("프록시 에러:", err.message);
 
-      // CSP 제거
-      $("meta[http-equiv='Content-Security-Policy']").remove();
+        // 프록시 실패 시 원본으로 fallback
+        res.writeHead(302, { Location: decodedUrl });
+        res.end();
+      }
+    })(req, res, next);
 
-      res.set("content-type", "text/html; charset=utf-8");
-      res.send($.html());
-    } else if (contentType.includes("text/css")) {
-      let cssText = await resp.text();
-      cssText = rewriteCssUrls(cssText, targetUrl);
-      res.set("content-type", "text/css; charset=utf-8");
-      res.send(cssText);
-    } else {
-      res.set("content-type", contentType);
-      const buffer = await resp.buffer();
-      res.send(buffer);
-    }
-  } catch (err) {
-    console.error("Proxy error:", err);
-    res.status(500).send("Proxy error: " + err.message);
+  } catch (e) {
+    console.error("URL decode 실패:", targetUrl, e.message);
+    res.status(400).send("잘못된 요청입니다.");
   }
 });
 
-// 메인 페이지 (Firebase 포인터)
+// 기본 라우트
 app.get("/", (req, res) => {
-  res.sendFile(__dirname + "/receiver.html");
+  res.send("Proxy Server is running 🚀");
 });
 
-app.listen(PORT, () => console.log(`Listening on ${PORT}`));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Proxy server listening on http://localhost:${PORT}`);
+});
