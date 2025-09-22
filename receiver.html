@@ -32,8 +32,8 @@ const pointerRef = db.ref('pointer');
 const pointer = document.getElementById('pointer');
 const container = document.getElementById('site-container');
 
-// 프록시 HTML 불러오기
-fetch("/proxy/https://ainews1.co.kr")
+// 프록시 HTML 불러오기 (Railway 서버 주소로 절대 경로)
+fetch("https://your-railway-app.up.railway.app/proxy/https://ainews1.co.kr")
 .then(res => res.text())
 .then(html => {
   container.innerHTML = html;
