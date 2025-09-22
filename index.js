@@ -1,53 +1,32 @@
-import express from 'express';
-import fetch from 'node-fetch';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import express from "express";
+import fetch from "node-fetch";
+import dotenv from "dotenv";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 정적 파일 제공 (클라이언트 HTML)
-app.use(express.static(path.join(__dirname, 'public')));
+// 예: /news?query=삼성
+app.get("/news", async (req, res) => {
+  const query = req.query.query || "삼성";
+  const display = req.query.display || 5;
 
-// 모든 프록시 요청 처리
-app.get('/proxy/*', async (req, res) => {
+  const url = `https://openapi.naver.com/v1/search/news.json?query=${encodeURIComponent(query)}&display=${display}&sort=date`;
+
   try {
-    const targetUrl = decodeURIComponent(req.params[0]);
-
-    const response = await fetch(targetUrl);
-    const contentType = response.headers.get('content-type');
-
-    if (contentType && contentType.includes('text/html')) {
-      let html = await response.text();
-      // <base> 삽입 → 상대 경로 문제 해결
-      html = `<base href="${targetUrl}">` + html;
-      res.set('Content-Type', 'text/html');
-      res.send(html);
-    } else if (contentType) {
-      // JS, CSS, 이미지 등 그대로 전달
-      res.set('Content-Type', contentType);
-      const buffer = await response.arrayBuffer();
-      res.send(Buffer.from(buffer));
-    } else {
-      // Content-Type 없는 경우
-      const buffer = await response.arrayBuffer();
-      res.set('Content-Type', 'application/octet-stream');
-      res.send(Buffer.from(buffer));
-    }
+    const response = await fetch(url, {
+      headers: {
+        "X-Naver-Client-Id": process.env.wdNCtT2aUZppI_i9vERx,
+        "X-Naver-Client-Secret": process.env.slwc7hndy3
+      }
+    });
+    const data = await response.json();
+    res.json(data); // JSON 그대로 반환
   } catch (err) {
-    console.error('Proxy Error:', err);
-    res.status(500).send('Proxy Error');
+    console.error(err);
+    res.status(500).send("API 호출 중 오류 발생");
   }
 });
 
-// 기본 경로 접속 시 클라이언트 HTML 제공
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.listen(PORT, () => {
-  console.log(`Proxy server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
