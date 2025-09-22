@@ -8,11 +8,8 @@ const PORT = process.env.PORT || 3000;
 
 // 절대 URL 변환
 function makeAbsolute(url, base) {
-  try {
-    return new URL(url, base).toString();
-  } catch {
-    return url;
-  }
+  try { return new URL(url, base).toString(); }
+  catch { return url; }
 }
 
 // 프록시 경로 변환
@@ -26,7 +23,8 @@ function rewriteCssUrls(cssText, base) {
     let urlStr = p1.trim().replace(/['"]/g, "");
     if (/^data:/.test(urlStr)) return match;
     const abs = makeAbsolute(urlStr, base);
-    return `url(${toProxyPath(abs)})`;
+    if (/^https?:\/\//i.test(abs)) return `url(${toProxyPath(abs)})`;
+    return match; // http/https 아닌 URL은 그대로
   });
 }
 
@@ -39,18 +37,11 @@ app.use((req, res, next) => {
 // 프록시 처리
 app.get("/proxy/:encoded(*)", async (req, res) => {
   const encoded = req.params.encoded;
-  let targetUrl;
+  const targetUrl = decodeURIComponent(encoded);
 
-  try {
-    targetUrl = decodeURIComponent(encoded);
-  } catch (e) {
-    return res.status(400).send("잘못된 요청");
-  }
-
-  // ✅ http/https 아닌 경우 프록시 차단
+  // HTTP/HTTPS 체크
   if (!/^https?:\/\//i.test(targetUrl)) {
-    console.log("프록시 제외:", targetUrl);
-    return res.redirect(targetUrl);
+    return res.status(400).send("Invalid URL: Only HTTP/HTTPS supported");
   }
 
   try {
@@ -62,7 +53,7 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
     const resp = await fetch(targetUrl, { headers, redirect: "follow" });
     const contentType = resp.headers.get("content-type") || "";
 
-    // 없는 JS/CSS 처리
+    // 404 처리
     if (resp.status === 404) {
       if (targetUrl.endsWith(".js")) {
         res.set("content-type", "application/javascript");
@@ -80,22 +71,25 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
       const $ = cheerio.load(html, { decodeEntities: false });
       const base = targetUrl;
 
-      // HTML 내 링크, 스크립트, 이미지, iframe, form 등 변환
+      // HTML 내 모든 링크, script, img, iframe, form, source 경로 변환
       const selAttr = [
         ["a", "href"], ["link", "href"], ["script", "src"],
         ["img", "src"], ["iframe", "src"], ["form", "action"],
         ["source", "src"],
       ];
+
       selAttr.forEach(([sel, attr]) => {
         $(sel).each((i, el) => {
           const old = $(el).attr(attr);
           if (!old) return;
           const abs = makeAbsolute(old, base);
-          $(el).attr(attr, toProxyPath(abs));
+          if (/^https?:\/\//i.test(abs)) {
+            $(el).attr(attr, toProxyPath(abs));
+          }
         });
       });
 
-      // style 태그 CSS url(...) 변환
+      // style 태그 CSS 경로 변환
       $("style").each((i, el) => {
         const cssText = $(el).html();
         $(el).html(rewriteCssUrls(cssText, base));
@@ -106,11 +100,13 @@ app.get("/proxy/:encoded(*)", async (req, res) => {
 
       res.set("content-type", "text/html; charset=utf-8");
       res.send($.html());
+
     } else if (contentType.includes("text/css")) {
       let cssText = await resp.text();
       cssText = rewriteCssUrls(cssText, targetUrl);
       res.set("content-type", "text/css; charset=utf-8");
       res.send(cssText);
+
     } else {
       res.set("content-type", contentType);
       const buffer = await resp.buffer();
