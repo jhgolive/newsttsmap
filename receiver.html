@@ -22,7 +22,7 @@ const firebaseConfig = {
   authDomain: "mygps-11798.firebaseapp.com",
   databaseURL: "https://mygps-11798-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "mygps-11798",
-  storageBucket: "mygps-11798.firebasedatabase.app",
+  storageBucket: "mygps-11798.appspot.com",
   messagingSenderId: "271371741627",
   appId: "1:271371741627:web:642901f43c5ad57d80bc9e"
 };
@@ -32,26 +32,42 @@ const pointerRef = db.ref('pointer');
 const pointer = document.getElementById('pointer');
 const container = document.getElementById('site-container');
 
-// 프록시 HTML 불러오기 (Railway 서버 주소로 절대 경로)
-fetch("https://your-railway-app.up.railway.app/proxy/https://ainews1.co.kr")
-.then(res => res.text())
-.then(html => {
-  container.innerHTML = html;
-});
+async function loadSite(url) {
+  try {
+    const res = await fetch(`https://your-railway-app.up.railway.app/proxy/${encodeURIComponent(url)}`);
+    let html = await res.text();
+    // 상대경로 해결용 <base> 태그 삽입
+    html = `<base href="${url}">` + html;
+    container.innerHTML = html;
+  } catch(err) {
+    console.error('사이트 로드 실패:', err);
+  }
+}
 
-// 포인터 클릭
+// 원하는 사이트 불러오기
+loadSite('https://ainews1.co.kr');
+
+// 포인터 이동 & 클릭
 pointerRef.on('value', snapshot => {
   const data = snapshot.val();
   if(!data) return;
-  const x = data.x * window.innerWidth;
-  const y = data.y * window.innerHeight;
+
+  const rect = container.getBoundingClientRect();
+  const x = rect.left + data.x * rect.width;
+  const y = rect.top + data.y * rect.height;
+
   pointer.style.left = x+'px';
   pointer.style.top = y+'px';
+
   if(data.click){
     pointer.style.background='red';
     setTimeout(()=>pointer.style.background='white',100);
+
+    // 실제 클릭 요소 찾기
     const target = document.elementFromPoint(x, y);
-    if(target && target!==pointer) target.click();
+    if(target && target!==pointer) {
+      target.click();
+    }
   }
 });
 </script>
