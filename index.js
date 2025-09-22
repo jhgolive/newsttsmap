@@ -1,114 +1,61 @@
-const express = require("express");
-const fetch = require("node-fetch"); // v2
-const cheerio = require("cheerio");
-const { URL } = require("url");
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Receiver with Pointer</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+body { margin:0; height:100vh; overflow:hidden; }
+#pointer { position:absolute; width:12px; height:20px; background:white;
+clip-path: polygon(0 0, 100% 50%, 0 100%, 25% 50%);
+pointer-events:none; transition:left 0.05s linear, top 0.05s linear, background 0.1s; z-index:9999; }
+#site-container { width:100%; height:100%; overflow:auto; position:relative; }
+</style>
+</head>
+<body>
+<div id="site-container"></div>
+<div id="pointer"></div>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAQGtOEcxFxl9FV7NASLgxLDc23u2vzS_0",
+  authDomain: "mygps-11798.firebaseapp.com",
+  databaseURL: "https://mygps-11798-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "mygps-11798",
+  storageBucket: "mygps-11798.appspot.com",
+  messagingSenderId: "271371741627",
+  appId: "1:271371741627:web:642901f43c5ad57d80bc9e"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const pointerRef = db.ref('pointer');
+const pointer = document.getElementById('pointer');
+const container = document.getElementById('site-container');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+// 프록시로 사이트 불러오기 (절대 URL만)
+const targetSite = "https://www.ainews1.co.kr"; 
+fetch("/proxy/" + encodeURIComponent(targetSite))
+.then(res => res.text())
+.then(html => { container.innerHTML = html; })
+.catch(err => console.error(err));
 
-function makeAbsolute(url, base) {
-  try { 
-    return new URL(url, base).toString(); 
-  } catch {
-    return null; // 절대 URL이 아니면 null 반환
-  }
-}
+// 포인터 이동 & 클릭
+pointerRef.on('value', snapshot => {
+  const data = snapshot.val();
+  if(!data) return;
 
-function toProxyPath(fullUrl) {
-  return "/proxy/" + encodeURIComponent(fullUrl);
-}
+  const x = data.x * window.innerWidth;
+  const y = data.y * window.innerHeight;
+  pointer.style.left = x+'px';
+  pointer.style.top = y+'px';
 
-function rewriteCssUrls(cssText, base) {
-  return cssText.replace(/url\(([^)]+)\)/g, (match, p1) => {
-    let urlStr = p1.trim().replace(/['"]/g, "");
-    if (/^data:/.test(urlStr)) return match;
-    const abs = makeAbsolute(urlStr, base);
-    if (!abs || !/^https?:\/\//i.test(abs)) return match; // HTTP/HTTPS만
-    return `url(${toProxyPath(abs)})`;
-  });
-}
-
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  next();
-});
-
-app.get("/proxy/:encoded(*)", async (req, res) => {
-  let targetUrl;
-  try {
-    targetUrl = decodeURIComponent(req.params.encoded);
-    if (!/^https?:\/\//i.test(targetUrl)) {
-      return res.status(400).send("Only HTTP(S) URLs supported");
-    }
-  } catch {
-    return res.status(400).send("Invalid URL");
-  }
-
-  try {
-    const headers = {
-      "User-Agent": req.get("User-Agent") || "node-proxy",
-      Accept: req.get("Accept") || "*/*",
-    };
-
-    const resp = await fetch(targetUrl, { headers, redirect: "follow" });
-    const contentType = resp.headers.get("content-type") || "";
-
-    if (resp.status === 404) {
-      if (targetUrl.endsWith(".js")) {
-        res.set("content-type", "application/javascript");
-        return res.send("// file not found");
-      }
-      if (targetUrl.endsWith(".css")) {
-        res.set("content-type", "text/css");
-        return res.send("/* file not found */");
-      }
-      return res.status(404).send("Not found");
-    }
-
-    if (contentType.includes("text/html")) {
-      let html = await resp.text();
-      const $ = cheerio.load(html, { decodeEntities: false });
-      const base = targetUrl;
-
-      // 모든 링크/스크립트/이미지/iframe/form/source 변환
-      const selAttr = [
-        ["a", "href"], ["link", "href"], ["script", "src"],
-        ["img", "src"], ["iframe", "src"], ["form", "action"],
-        ["source", "src"],
-      ];
-      selAttr.forEach(([sel, attr]) => {
-        $(sel).each((i, el) => {
-          const old = $(el).attr(attr);
-          if (!old) return;
-          const abs = makeAbsolute(old, base);
-          if (abs && /^https?:\/\//i.test(abs)) {
-            $(el).attr(attr, toProxyPath(abs));
-          }
-        });
-      });
-
-      $("style").each((i, el) => {
-        const cssText = $(el).html();
-        $(el).html(rewriteCssUrls(cssText, base));
-      });
-
-      $("meta[http-equiv='Content-Security-Policy']").remove();
-      res.set("content-type", "text/html; charset=utf-8");
-      res.send($.html());
-    } else if (contentType.includes("text/css")) {
-      let cssText = await resp.text();
-      cssText = rewriteCssUrls(cssText, targetUrl);
-      res.set("content-type", "text/css; charset=utf-8");
-      res.send(cssText);
-    } else {
-      res.set("content-type", contentType);
-      const buffer = await resp.buffer();
-      res.send(buffer);
-    }
-  } catch (err) {
-    console.error("Proxy error:", err);
-    res.status(500).send("Proxy error: " + err.message);
+  if(data.click){
+    pointer.style.background='red';
+    setTimeout(()=>pointer.style.background='white',100);
+    const target = document.elementFromPoint(x, y);
+    if(target && target!==pointer) target.click();
   }
 });
-
-app.listen(PORT, () => console.log(`Listening on ${PORT}`));
+</script>
+</body>
+</html>
