@@ -14,19 +14,26 @@ app.get("/news", async (req, res) => {
   const url = `https://openapi.naver.com/v1/search/news.json?query=${encodeURIComponent(query)}&display=${display}&sort=date`;
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        "X-Naver-Client-Id": process.env.NAVER_CLIENT_ID,
-        "X-Naver-Client-Secret": process.env.NAVER_CLIENT_SECRET
+      const response = await fetch(url, {
+          headers: {
+              "X-Naver-Client-Id": process.env.NAVER_CLIENT_ID,
+              "X-Naver-Client-Secret": process.env.NAVER_CLIENT_SECRET
+          }
+      });
+  
+      if (!response.ok) {
+          console.error("네이버 API 오류:", response.status, response.statusText);
+          return res.status(502).send("네이버 API 호출 실패");
       }
-    });
-    const data = await response.json();
-    res.json(data);
+  
+      const data = await response.json();
+      res.json(data);
   } catch (err) {
-    console.error(err);
-    res.status(500).send("API 호출 중 오류 발생");
+      console.error("fetch 예외:", err);
+      res.status(502).send("서버 fetch 실패");
   }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
