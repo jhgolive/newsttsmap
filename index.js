@@ -8,16 +8,16 @@ let lastNews = "";
 
 app.use(cors());
 
+import Parser from "rss-parser";
+const parser = new Parser();
+
 async function fetchNews() {
   try {
-    const res = await fetch(
-      "https://api.rss2json.com/v1/api.json?rss_url=https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko"
-    );
-    const data = await res.json();
-    const newsText = data.items.map(i => i.title).join("   |   ");
+    const feed = await parser.parseURL("https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko");
+    const newsText = feed.items.map(i => i.title).join("   |   ");
     lastNews = newsText;
   } catch (err) {
-    console.error("뉴스 불러오기 실패", err);
+    console.error(err);
   }
 }
 
@@ -35,3 +35,4 @@ app.listen(PORT, () => {
 app.get("/", (req, res) => {
   res.send("Server is running 🚀");
 });
+
