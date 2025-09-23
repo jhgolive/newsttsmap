@@ -15,19 +15,18 @@ app.use(express.static("public"));
 // RSS에서 뉴스 가져오기
 async function fetchNews() {
   try {
-    // Google 뉴스 RSS
     const feed = await parser.parseURL(
       "https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko"
     );
-    // 최대 50개 뉴스 추출
     const items = feed.items.slice(0, 50);
-    const newsText = items.map(i => i.title).join("   |   ");
-    lastNews = newsText;
+    lastNews = items.map(i => i.title).join("   |   ");
     console.log(`✅ 뉴스 갱신 완료 (${items.length}개)`);
   } catch (err) {
     console.error("뉴스 불러오기 실패", err);
+    lastNews = "뉴스를 불러올 수 없습니다.";
   }
 }
+
 
 // 초기 뉴스 가져오기 + 5분마다 갱신
 fetchNews();
@@ -46,3 +45,4 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
+
