@@ -25,13 +25,12 @@
 <body>
   <div id="news">뉴스 로딩 중...</div>
   <script>
-    fetch("https://news-production-b9d6.up.railway.app/news")
+    async function loadNews() {
+      try {
+            fetch("https://news-production-b9d6.up.railway.app/news")
   .then(res => res.json())
   .then(data => console.log("뉴스 데이터:", data))
   .catch(err => console.error("fetch 실패:", err));
-
-    async function loadNews() {
-      try {
         const res = await fetch("https://news-production-b9d6.up.railway.app/news");
         const data = await res.json();
         console.log("뉴스:", data);
