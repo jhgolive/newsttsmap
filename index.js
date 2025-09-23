@@ -10,9 +10,10 @@ app.use(cors());
 
 async function fetchNews() {
   try {
-    const res = await fetch(
-      "https://api.rss2json.com/v1/api.json?rss_url=https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko"
-    );
+      const res = await fetch(
+        "https://api.rss2json.com/v1/api.json?rss_url=https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko&count=50"
+      );
+
     const data = await res.json();
     const newsText = data.items.map(i => i.title).join("   |   ");
     lastNews = newsText;
@@ -35,3 +36,4 @@ app.listen(PORT, () => {
 app.get("/", (req, res) => {
   res.send("Server is running 🚀");
 });
+
