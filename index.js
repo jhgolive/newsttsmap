@@ -1,32 +1,39 @@
 const express = require("express");
-const fetch = require("node-fetch"); // Node 18 이전 버전은 node-fetch 필요
+const fetch = require("node-fetch"); // Node 18 이상이면 fetch 생략 가능
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 let lastNews = "";
 
-app.get("/news", async (req, res) => {
+// 뉴스 가져오기
+async function fetchNews() {
   try {
-    const response = await fetch(
+    const res = await fetch(
       "https://api.rss2json.com/v1/api.json?rss_url=https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko"
     );
-    const data = await response.json();
+    const data = await res.json();
     const newsText = data.items.map(i => i.title).join("   |   ");
-
     if (newsText !== lastNews) {
       lastNews = newsText;
     }
-
-    res.json({ news: lastNews });
   } catch (err) {
     console.error("뉴스 불러오기 실패", err);
-    res.status(500).json({ error: "뉴스 불러오기 실패" });
   }
-});
+}
+
+// 초기 뉴스 가져오기
+fetchNews();
+// 5분마다 갱신
+setInterval(fetchNews, 300000);
 
 // 정적 파일 제공
 app.use(express.static("public"));
 
+// API 엔드포인트
+app.get("/news", (req, res) => {
+  res.json({ news: lastNews });
+});
+
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
