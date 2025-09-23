@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
-const Parser = require("rss-parser");
+const fetch = require("node-fetch");
+const xml2js = require("xml2js");
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -9,17 +10,20 @@ let lastNews = "";
 
 app.use(cors());
 
-const parser = new Parser();
+// xml2js parser 준비
+const parser = new xml2js.Parser({ explicitArray: false });
 
 async function fetchNews() {
   try {
-    const feed = await parser.parseURL(
+    const res = await fetch(
       "https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko"
     );
-    // 모든 기사 제목 합치기
-    const newsText = feed.items.map(item => item.title).join("   |   ");
+    const xml = await res.text();
+    const result = await parser.parseStringPromise(xml);
+    const items = result.rss.channel.item;
+    const newsText = items.map(i => i.title).join("   |   ");
     lastNews = newsText;
-    console.log(`뉴스 업데이트 완료: ${feed.items.length}건`);
+    console.log(`뉴스 ${items.length}개 가져옴`);
   } catch (err) {
     console.error("뉴스 불러오기 실패", err);
   }
