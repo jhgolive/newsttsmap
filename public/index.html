@@ -27,11 +27,11 @@
   <script>
     async function loadNews() {
       try {
-        const res = await fetch("/news");
+        const res = await fetch("https://news-production-b9d6.up.railway.app/news");
         const data = await res.json();
-        document.getElementById("news").innerText = data.news;
-      } catch(e) {
-        console.error("뉴스 불러오기 실패", e);
+        console.log("뉴스:", data);
+      } catch (err) {
+        console.error("뉴스 불러오기 실패", err);
       }
     }
     loadNews();
