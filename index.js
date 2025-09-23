@@ -11,7 +11,7 @@ let lastNews = "";
 async function fetchNews() {
   try {
     const res = await fetch(
-      "https://news-production-b9d6.up.railway.app"
+      "https://api.rss2json.com/v1/api.json?rss_url=https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko"
     );
     const data = await res.json();
     const newsText = data.items.map(i => i.title).join("   |   ");
@@ -39,5 +39,6 @@ app.get("/news", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
