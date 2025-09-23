@@ -8,10 +8,11 @@ const PORT = process.env.PORT || 3000;
 
 let lastNews = "";
 
-// 특정 도메인만 허용 (보안 강화)
-app.use(cors({
-  origin: "https://jhgolive.github.io"
-}));
+// 모든 도메인 허용 (테스트용)
+app.use(cors());
+
+// 보안을 강화하려면 특정 도메인만 허용
+// app.use(cors({ origin: "https://jhgolive.github.io" }));
 
 // 뉴스 가져오기
 async function fetchNews() {
@@ -45,6 +46,7 @@ app.get("/news", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
