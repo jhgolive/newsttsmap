@@ -19,34 +19,21 @@ let combinedNews = "";
 
 // RSS2JSON로 카테고리별 10개 뉴스 가져오기
 async function fetchCategoryNews(rssUrl) {
-  try {
-    const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&count=10`;
-    const res = await fetch(apiUrl);
-    const data = await res.json();
-    if (data.items) {
-      return data.items.map(i => i.title);
-    }
-    return [];
-  } catch (err) {
-    console.error("뉴스 불러오기 실패", err);
-    return [];
-  }
+  const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&count=10`;
+  const res = await fetch(apiUrl); // 내장 fetch 사용 가능
+  const data = await res.json();
+  return data.items ? data.items.map(i => i.title) : [];
 }
 
-// 모든 카테고리 뉴스 합치기
-async function fetchNews() {
-  try {
-    const allNews = [];
-    for (const cat of Object.keys(categories)) {
-      const titles = await fetchCategoryNews(categories[cat]);
-      allNews.push(...titles);
-    }
-    combinedNews = allNews.join("   |   ");
-    console.log("뉴스 갱신 완료 ✅");
-  } catch (err) {
-    console.error(err);
+async function fetchAllCategories() {
+  const allNews = [];
+  for (const url of Object.values(categories)) {
+    const titles = await fetchCategoryNews(url); // 카테고리별 10개
+    allNews.push(...titles);
   }
+  return allNews;
 }
+
 
 // 초기 fetch + 5분마다 갱신
 fetchNews();
@@ -58,4 +45,5 @@ app.get("/news", (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+
 
