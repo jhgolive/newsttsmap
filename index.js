@@ -34,6 +34,11 @@ async function fetchAllCategories() {
   return allNews;
 }
 
+async function fetchNews() {
+  const allNews = await fetchAllCategories();
+  combinedNews = allNews.join("   |   ");
+  console.log("뉴스 갱신 완료 ✅");
+}
 
 // 초기 fetch + 5분마다 갱신
 fetchNews();
@@ -45,5 +50,6 @@ app.get("/news", (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+
 
 
