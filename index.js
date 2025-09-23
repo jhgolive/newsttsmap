@@ -21,9 +21,9 @@ async function fetchNews() {
     const xml = await res.text();
     const result = await parser.parseStringPromise(xml);
     const items = result.rss.channel.item;
+    console.log('기사 개수:', items.length);
     const newsText = items.map(i => i.title).join("   |   ");
     lastNews = newsText;
-    console.log(`뉴스 ${items.length}개 가져옴`);
   } catch (err) {
     console.error("뉴스 불러오기 실패", err);
   }
@@ -43,3 +43,4 @@ app.listen(PORT, () => {
 app.get("/", (req, res) => {
   res.send("Server is running 🚀");
 });
+
