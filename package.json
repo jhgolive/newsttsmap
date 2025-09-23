@@ -1,5 +1,5 @@
 {
-  "name": "my-news-app",
+  "name": "news",
   "version": "1.0.0",
   "description": "Node.js 뉴스 서버",
   "main": "index.js",
