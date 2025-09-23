@@ -20,7 +20,7 @@ async function fetchNews() {
     );
     const xml = await res.text();
     const result = await parser.parseStringPromise(xml);
-    const items = result.rss.channel.item;
+    const items = result.rss.channel.item || [];
     console.log('기사 개수:', items.length);
     const newsText = items.map(i => i.title).join("   |   ");
     lastNews = newsText;
@@ -43,4 +43,5 @@ app.listen(PORT, () => {
 app.get("/", (req, res) => {
   res.send("Server is running 🚀");
 });
+
 
