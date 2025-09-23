@@ -14,23 +14,27 @@ const parser = new xml2js.Parser({ explicitArray: false });
 
 async function fetchNews() {
   try {
+    // 구글 뉴스 RSS
     const res = await fetch(
       "https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko"
     );
-    console.log('Fetch status:', res.status);
+    if (!res.ok) throw new Error(`RSS fetch failed: ${res.status}`);
     const xml = await res.text();
+
     const result = await parser.parseStringPromise(xml);
-    console.log('Parsed result:', result.rss.channel.item?.length);
+
+    // 안전하게 배열 처리
     const items = Array.isArray(result.rss.channel.item)
       ? result.rss.channel.item
       : [result.rss.channel.item];
-    lastNews = items.map(i => i.title).join(" | ");
+
+    lastNews = items.map(i => i.title).join("   |   ");
+    console.log(`✅ 뉴스 ${items.length}개 가져옴`);
   } catch (err) {
     console.error("뉴스 불러오기 실패", err);
     lastNews = "뉴스 로딩 실패 😢";
   }
 }
-
 
 // 서버 시작 전에 한번 로드
 fetchNews();
@@ -48,4 +52,3 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
-
