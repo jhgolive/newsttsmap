@@ -4,7 +4,7 @@ const fetch = require("node-fetch"); // Node 18 이상이면 fetch 생략 가능
 const app = express();
 // public 폴더 안 파일을 정적 파일로 제공
 app.use(express.static("public"));
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 let lastNews = "";
 
@@ -46,6 +46,7 @@ app.get("/news", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
