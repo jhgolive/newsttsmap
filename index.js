@@ -1,3 +1,4 @@
+import cors from "cors";
 const express = require("express");
 const fetch = require("node-fetch"); // Node 18 이상이면 fetch 생략 가능
 const app = express();
@@ -6,6 +7,11 @@ app.use(express.static("public"));
 const PORT = process.env.PORT || 3000;
 
 let lastNews = "";
+
+// 특정 도메인만 허용 (보안 강화)
+app.use(cors({
+  origin: "https://jhgolive.github.io"
+}));
 
 // 뉴스 가져오기
 async function fetchNews() {
@@ -39,6 +45,7 @@ app.get("/news", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
