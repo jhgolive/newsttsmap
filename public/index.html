@@ -40,18 +40,19 @@
 const newsEl = document.getElementById("news");
 const wrapperEl = document.getElementById("wrapper");
 const API_URL = "https://news-production-b9d6.up.railway.app/news";
-let newsText = "";
-let animFrame;
-  
-// 뉴스 가져오기
-let pendingNews = null;
 
+let newsText = "뉴스 로딩 중...";
+let pendingNews = null; // 대기 중인 새 뉴스
+let animFrame;
+
+// 뉴스 가져오기
 async function loadNews() {
   try {
     const res = await fetch(API_URL);
     const data = await res.json();
     if (data.news && data.news !== newsText) {
-      pendingNews = data.news; // 바로 적용하지 않고 대기
+      // 바로 적용하지 않고 대기
+      pendingNews = data.news;
     }
   } catch (err) {
     console.error("뉴스 불러오기 실패", err);
@@ -62,7 +63,6 @@ async function loadNews() {
 function startScroll() {
   cancelAnimationFrame(animFrame);
   newsEl.style.transform = `translateX(${wrapperEl.offsetWidth}px)`;
-  const totalWidth = newsEl.offsetWidth + wrapperEl.offsetWidth;
   let startTime = null;
 
   function step(timestamp) {
@@ -70,12 +70,13 @@ function startScroll() {
     const elapsed = timestamp - startTime;
     const speed = 100; // px/sec
     const x = wrapperEl.offsetWidth - (elapsed / 1000) * speed;
+
     newsEl.style.transform = `translateX(${x}px)`;
 
     if (x + newsEl.offsetWidth > 0) {
       animFrame = requestAnimationFrame(step);
     } else {
-      // 끝까지 가면 새 뉴스 있으면 교체
+      // 끝까지 간 뒤 새 뉴스 있으면 교체
       if (pendingNews) {
         newsText = pendingNews;
         newsEl.innerText = newsText;
@@ -88,8 +89,12 @@ function startScroll() {
   animFrame = requestAnimationFrame(step);
 }
 
-// 초기 로드 + 5분마다 갱신
+// 초기 실행
+newsEl.innerText = newsText;
+startScroll();
 loadNews();
+
+// 1분마다 뉴스 갱신
 setInterval(loadNews, 60000);
 </script>
 </body>
