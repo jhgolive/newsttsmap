@@ -7,10 +7,7 @@ const PORT = process.env.PORT || 8080;
 
 let lastNews = "";
 
-// 모든 도메인 허용
 app.use(cors());
-
-// 정적 파일 제공
 app.use(express.static("public"));
 
 async function fetchNews() {
