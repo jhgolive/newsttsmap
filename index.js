@@ -1,6 +1,5 @@
 const express = require("express");
 const cors = require("cors");
-const fetch = require("node-fetch");
 const xml2js = require("xml2js");
 
 const app = express();
@@ -18,21 +17,20 @@ async function fetchNews() {
     const res = await fetch(
       "https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko"
     );
+    console.log('Fetch status:', res.status);
     const xml = await res.text();
     const result = await parser.parseStringPromise(xml);
-
-    // 안전하게 배열 처리
+    console.log('Parsed result:', result.rss.channel.item?.length);
     const items = Array.isArray(result.rss.channel.item)
       ? result.rss.channel.item
       : [result.rss.channel.item];
-
-    lastNews = items.map(i => i.title).join("   |   ");
-    console.log(`뉴스 ${items.length}개 가져옴`);
+    lastNews = items.map(i => i.title).join(" | ");
   } catch (err) {
     console.error("뉴스 불러오기 실패", err);
     lastNews = "뉴스 로딩 실패 😢";
   }
 }
+
 
 // 서버 시작 전에 한번 로드
 fetchNews();
@@ -50,3 +48,4 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
+
