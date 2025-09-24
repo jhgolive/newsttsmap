@@ -12,9 +12,12 @@
   #wrapper {
     white-space: nowrap;
     overflow: hidden;
-    position: relative;
+    position: fixed;   /* 화면에 고정 */
+    bottom: 0;         /* 화면 하단 */
+    left: 0;
     width: 100vw;
-    height: 40px; /* 자막 높이 */
+    height: 40px;      /* 자막 높이 */
+    z-index: 9999;     /* 다른 요소보다 위에 */
   }
   #news {
     display: inline-block;
