@@ -82,6 +82,8 @@ function startScroll() {
         newsEl.innerText = newsText;
         pendingNews = null;
       }
+      // 한 바퀴 끝났을 때 서버에서 새 뉴스 요청
+      loadNews();
       startScroll();
     }
   }
@@ -94,8 +96,6 @@ newsEl.innerText = newsText;
 startScroll();
 loadNews();
 
-// 10분마다 뉴스 갱신
-setInterval(loadNews, 600000);
 </script>
 </body>
 </html>
