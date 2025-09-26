@@ -69,9 +69,9 @@ async function fetchAllNews() {
   }
 }
 
-// 초기 로드 + 50분마다 갱신
+// 초기 로드 + 30분마다 갱신
 fetchAllNews();
-setInterval(fetchAllNews, 3000000);
+setInterval(fetchAllNews, 1800000);
 
 app.get("/news", (req, res) => {
   res.json({ news: lastNews });
@@ -84,6 +84,7 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
+
 
 
 
