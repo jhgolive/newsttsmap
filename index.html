@@ -1,1 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>뉴스 남자음성 컨트롤</title>
+<style>
+  body {
+    margin: 0;
+    background: transparent;
+    overflow: hidden;
+  }
 
+  #wrapper {
+    white-space: nowrap;
+    overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 40px;
+    z-index: 9999;
+  }
+
+  #news {
+    display: inline-block;
+    font-size: 28px;
+    color: white;
+    font-weight: bold;
+    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black,
+                 -1px -1px black, -1px 1px black, 1px -1px black, 1px 1px black;
+    position: absolute;
+    top: 0;
+    white-space: nowrap;
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+
+  @keyframes scroll {
+    from { transform: translateX(100vw); }
+    to { transform: translateX(-100%); }
+  }
+</style>
+</head>
+<body>
+<div id="wrapper">
+  <div id="news">뉴스 로딩 중...</div>
+</div>
+
+<audio id="ttsAudio" playsinline></audio>
+
+<script type="module">
+//--------------------------뉴스컨트롤----------------------------------
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAQGtOEcxFxl9FV7NASLgxLDc23u2vzS_0",
+  authDomain: "mygps-11798.firebaseapp.com",
+  databaseURL: "https://mygps-11798-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "mygps-11798",
+  storageBucket: "mygps-11798.firebasedestorage.app",
+  messagingSenderId: "271371741627",
+  appId: "1:271371741627:web:642901f43c5ad57d80bc9e"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const audioEl = document.getElementById("ttsAudio");
+const newsEl = document.getElementById("news");
+
+// Firebase 실시간 감시
+onValue(ref(db, "ttsControl"), (snap) => {
+  const control = snap.val();
+  if (!control) return;
+
+  // ▶ / ⏸ 제어
+  if (control.playing === false) {
+    audioEl.pause();
+    newsEl.style.animationPlayState = "paused";
+  } else if (control.playing === true) {
+    audioEl.play();
+    newsEl.style.animationPlayState = "running";
+  }
+
+  // 🔊 볼륨 제어
+  if (typeof control.volume === "number") {
+    audioEl.volume = control.volume;
+  }
+
+  // ⏪ 되감기 제어
+  if (typeof control.seek === "number" && control.seek < 0) {
+    audioEl.currentTime = Math.max(0, audioEl.currentTime + control.seek);
+    update(ref(db, "ttsControl"), { seek: 0 }); // 리셋
+  }
+});
+//-----------------------------------------------------------
+//const newsEl = document.getElementById("news");
+//const audioEl = document.getElementById("ttsAudio");
+
+const NEWS_API = "https://newstts2-production.up.railway.app/news";
+const TTS_API = "https://newstts2-production.up.railway.app/news-tts";
+
+// 뉴스 불러오기
+async function loadNews() {
+  try {
+    const res = await fetch(NEWS_API);
+    const data = await res.json();
+    if (data.news) {
+      startScrollAndTTS(data.news);
+    }
+  } catch (err) {
+    console.error("뉴스 불러오기 실패", err);
+  }
+}
+
+// 스크롤 + TTS 동기화
+async function startScrollAndTTS(text) {
+  newsEl.textContent = text;
+
+  // TTS mp3 받아오기
+  const ttsRes = await fetch(TTS_API);
+  const ttsBlob = await ttsRes.blob();
+  audioEl.src = URL.createObjectURL(ttsBlob);
+  audioEl.pause();
+  audioEl.currentTime = 0;
+
+  // mp3 로딩 후 재생 준비
+  audioEl.onloadedmetadata = () => {
+    const duration = audioEl.duration;
+
+    // 스크롤 속도 계산
+    const wrapperWidth = newsEl.parentElement.offsetWidth;
+    const textWidth = newsEl.offsetWidth;
+    const distance = wrapperWidth + textWidth;
+    
+    newsEl.style.animation = "none"; // 기존 애니메이션 초기화
+    newsEl.offsetHeight; // 리플로우 강제
+    newsEl.style.animation = `scroll ${duration}s linear 1`;
+
+    // Web Audio API로 볼륨 제어
+    const ctx = new AudioContext();
+    const source = ctx.createMediaElementSource(audioEl);
+    const gainNode = ctx.createGain();
+    gainNode.gain.value = 0.5; // 원하는 볼륨 (0.0 ~ 1.0)
+    source.connect(gainNode).connect(ctx.destination);
+    
+    // 3초 딜레이 후 TTS 재생
+    setTimeout(() => {
+      ctx.resume(); // 일부 브라우저에서 필요
+      audioEl.play().catch(err => console.warn(err));
+    }, 3000);
+  };
+
+  // 스크롤 끝나면 다음 뉴스
+  newsEl.addEventListener("animationend", function handler() {
+    newsEl.removeEventListener("animationend", handler);
+    loadNews();
+  });
+}
+
+// 초기 실행
+loadNews();
+</script>
+</body>
+</html>
