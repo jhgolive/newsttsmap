@@ -1,50 +1,43 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>뉴스 TTS 컨트롤</title>
-  <style>
-    body {
-      display:flex; flex-direction:column; justify-content:center; align-items:center;
-      height:100vh; font-family:Arial, sans-serif; background:#222; color:#fff; margin:0;
-    }
-    button {
-      padding:20px 40px; font-size:24px; border:none; border-radius:12px; cursor:pointer;
-      margin:10px; background-color:#ff5722; color:white; transition:background 0.2s;
-    }
-    button:hover { background-color:#e64a19; }
-  </style>
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<meta charset="UTF-8">
+<title>뉴스 TTS 컨트롤</title>
+<style>
+  body { display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; font-family:Arial,sans-serif; background:#222; color:#fff; margin:0; }
+  button { padding:20px 40px; font-size:24px; border:none; border-radius:12px; cursor:pointer; margin:10px; background-color:#ff5722; color:white; transition:background 0.2s; }
+  button:hover { background-color:#e64a19; }
+</style>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
-  <h1>뉴스 TTS 컨트롤</h1>
-  <button id="playBtn">▶ 재생/정지</button>
+<h1>뉴스 TTS 컨트롤</h1>
+<button id="playBtn">▶ 재생/정지</button>
 
-  <script>
-    // --- Firebase 초기화 ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyAQGtOEcxFxl9FV7NASLgxLDc23u2vzS_0",
-      authDomain: "mygps-11798.firebaseapp.com",
-      databaseURL: "https://mygps-11798-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "mygps-11798",
-      storageBucket: "mygps-11798.firebasestorage.app",
-      messagingSenderId: "271371741627",
-      appId: "1:271371741627:web:642901f43c5ad57d80bc9e"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const ttsRef = db.ref("ttsButton");
+<script>
+// Firebase 초기화
+const firebaseConfig = {
+  apiKey: "AIzaSyAQGtOEcxFxl9FV7NASLgxLDc23u2vzS_0",
+  authDomain: "mygps-11798.firebaseapp.com",
+  databaseURL: "https://mygps-11798-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "mygps-11798",
+  storageBucket: "mygps-11798.firebasestorage.app",
+  messagingSenderId: "271371741627",
+  appId: "1:271371741627:web:642901f43c5ad57d80bc9e"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const ttsRef = db.ref("ttsButton");
 
-    // 버튼 클릭 시 timestamp 전송
-    document.getElementById("playBtn").addEventListener("click", async () => {
-      try {
-        const ts = Date.now();
-        await ttsRef.set(ts);
-        console.log("TTS 신호 전송:", ts);
-      } catch(err) { console.error(err); }
-    });
-  </script>
+// 버튼 클릭 시 timestamp 전송
+document.getElementById("playBtn").addEventListener("click", async () => {
+  try{
+    const ts = Date.now();
+    await ttsRef.set(ts);
+    console.log("TTS 신호 전송:", ts);
+  } catch(err){ console.error(err); }
+});
+</script>
 </body>
 </html>
