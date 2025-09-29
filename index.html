@@ -1,1 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>뉴스2 + 음성</title>
+  <style>
+    body {
+      margin: 0;
+      background: transparent;
+      overflow: hidden;
+    }
+    #wrapper {
+      position: fixed;
+      top: 0;
+      left: 0;
+      transform: translateY(-8px);
+      z-index: 9999;
+    }
+    #news {
+      position: fixed;
+      top: 0;
+      left: 0;
+      white-space: nowrap;
+      display: inline-block;
+      font-size: 28px;
+      color: white;
+      font-weight: bold;
+      text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black,
+                   -1px -1px black, -1px 1px black, 1px -1px black, 1px 1px black;
+      will-change: transform;
+      backface-visibility: hidden;
+      animation: scroll 120s linear infinite; /* 스크롤 속도 조절 */
+      z-index: 9999;
+    }
+    @keyframes scroll {
+      0% { transform: translateX(100vw); }
+      100% { transform: translateX(-100%); }
+    }
+  </style>
+</head>
+<body>
+  <div id="wrapper">
+    <div id="news">뉴스 로딩 중...</div>
+  </div>
+  
+  <script>
+  const newsEl = document.getElementById("news");
+  let lastNews = "";
+  let speaking = false;
 
+  // 🗣 브라우저 TTS로 뉴스 제목들을 읽기
+  function speakNews(text) {
+    if (!text) return;
+
+    // 이전 음성 재생 중지
+    window.speechSynthesis.cancel();
+
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "ko-KR";  // 한국어
+    utter.rate = 1.1;      // 뉴스 느낌 살리기 위해 약간 빠르게
+    utter.pitch = 1.0;
+    utter.volume = 1.0;
+
+    // 사용 가능한 음성 중 ko-KR 찾기
+    const voices = speechSynthesis.getVoices();
+    const koreanVoice = voices.find(v => v.lang.startsWith("ko"));
+    if (koreanVoice) utter.voice = koreanVoice;
+
+    speaking = true;
+    utter.onend = () => { speaking = false; };
+
+    speechSynthesis.speak(utter);
+  }
+
+  // 📰 RSS 뉴스 가져오기
+  async function loadNews() {
+    try {
+      const res = await fetch("https://api.rss2json.com/v1/api.json?rss_url=https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko");
+      const data = await res.json();
+      if (!data.items) return;
+
+      const newsTitles = data.items.map(i => i.title);
+      const newsText = newsTitles.join("   |   ");
+
+      if (newsText !== lastNews) {  // 변경된 경우에만 적용
+        newsEl.innerText = newsText;
+        lastNews = newsText;
+        speakNews(newsTitles.join("。 ")); // 점(。)으로 끊어서 낭독
+      }
+    } catch (e) {
+      console.error("뉴스 불러오기 실패", e);
+    }
+  }
+
+  // ✅ 일부 브라우저에서는 음성 리스트가 늦게 로딩됨
+  if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = () => {};
+  }
+
+  // 초기 실행
+  loadNews();
+  setInterval(loadNews, 300000); // 5분마다 갱신
+  </script>
+</body>
+</html>
