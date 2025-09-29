@@ -43,11 +43,11 @@
 </style>
 </head>
 <body>
-333<div id="wrapper">
+555<div id="wrapper">
   <div id="news">뉴스 로딩 중...</div>
 </div>
 
-<audio id="ttsAudio" playsinline></audio>
+<audio id="ttsAudio" playsinline muted></audio>
 
 <script type="module">
 //--------------------------뉴스컨트롤----------------------------------
@@ -68,7 +68,13 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 const audioEl = document.getElementById("ttsAudio");
-const newsEl = document.getElementById("news");
+let newsEl = document.getElementById("news");
+
+// ✅ 클릭 시 음성 재생 허용
+document.addEventListener("click", () => {
+  audioEl.muted = false; // 음소거 해제
+  audioEl.play().catch(err => console.warn("Autoplay blocked:", err));
+}, { once: true });
 
 // Firebase 실시간 감시
 onValue(ref(db, "ttsControl"), (snap) => {
@@ -91,6 +97,7 @@ onValue(ref(db, "ttsControl"), (snap) => {
 
   // ⏪ 되감기 제어 (수정 최종)
   if (typeof control.seek === "number" && control.seek < 0) {
+    if (!newsEl || !newsEl.parentElement) return;
     const newTime = Math.max(0, audioEl.currentTime + control.seek);
     audioEl.currentTime = newTime;
   
