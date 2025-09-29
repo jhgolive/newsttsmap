@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="data:,">
 <title>뉴스 남자음성 컨트롤</title>
 <style>
   body {
@@ -90,7 +91,27 @@ onValue(ref(db, "ttsControl"), (snap) => {
 
   // ⏪ 되감기 제어
   if (typeof control.seek === "number" && control.seek < 0) {
-    audioEl.currentTime = Math.max(0, audioEl.currentTime + control.seek);
+    const newTime = Math.max(0, audioEl.currentTime + control.seek);
+    audioEl.currentTime = newTime;
+  
+    // 현재 진행률 비율 계산
+    const progress = newTime / audioEl.duration;
+    const wrapperWidth = newsEl.parentElement.offsetWidth;
+    const textWidth = newsEl.offsetWidth;
+    const distance = wrapperWidth + textWidth;
+  
+    // 진행률에 맞게 자막 위치도 이동
+    const newX = wrapperWidth - distance * progress;
+    newsEl.style.animationPlayState = "paused";
+    newsEl.style.transform = `translateX(${newX}px)`;
+  
+    // 다시 애니메이션 이어서 진행
+    const remainingTime = audioEl.duration - newTime;
+    newsEl.style.animation = "none"; // 초기화
+    newsEl.offsetHeight; // 강제 리플로우
+    newsEl.style.animation = `scroll ${remainingTime}s linear 1`;
+    newsEl.style.animationPlayState = "running";
+  
     update(ref(db, "ttsControl"), { seek: 0 }); // 리셋
   }
 });
