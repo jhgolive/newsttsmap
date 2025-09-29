@@ -43,7 +43,7 @@
 </style>
 </head>
 <body>
-555<div id="wrapper">
+777<div id="wrapper">
   <div id="news">뉴스 로딩 중...</div>
 </div>
 
@@ -70,10 +70,17 @@ const db = getDatabase(app);
 const audioEl = document.getElementById("ttsAudio");
 let newsEl = document.getElementById("news");
 
-// ✅ 클릭 시 음성 재생 허용
-document.addEventListener("click", () => {
-  audioEl.muted = false; // 음소거 해제
-  audioEl.play().catch(err => console.warn("Autoplay blocked:", err));
+// 사용자가 처음 클릭할 때만 재생 허용
+let userInteracted = false;
+document.addEventListener("click", async () => {
+  if (!userInteracted) {
+    userInteracted = true;
+    try {
+      await audioEl.play(); // 클릭 후 오디오 재생 시도
+    } catch (err) {
+      console.warn("Autoplay blocked:", err);
+    }
+  }
 }, { once: true });
 
 // Firebase 실시간 감시
@@ -85,7 +92,7 @@ onValue(ref(db, "ttsControl"), (snap) => {
   if (control.playing === false) {
     audioEl.pause();
     newsEl.style.animationPlayState = "paused";
-  } else if (control.playing === true) {
+  } else if (control.playing === true && userInteracted) {
     audioEl.play();
     newsEl.style.animationPlayState = "running";
   }
