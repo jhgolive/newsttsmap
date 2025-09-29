@@ -43,7 +43,7 @@
 </style>
 </head>
 <body>
-222<div id="wrapper">
+333<div id="wrapper">
   <div id="news">뉴스 로딩 중...</div>
 </div>
 
@@ -89,7 +89,7 @@ onValue(ref(db, "ttsControl"), (snap) => {
     audioEl.volume = control.volume;
   }
 
-  // ⏪ 되감기 제어 (수정 버전)
+  // ⏪ 되감기 제어 (수정 최종)
   if (typeof control.seek === "number" && control.seek < 0) {
     const newTime = Math.max(0, audioEl.currentTime + control.seek);
     audioEl.currentTime = newTime;
@@ -102,10 +102,14 @@ onValue(ref(db, "ttsControl"), (snap) => {
     const textWidth = newsEl.offsetWidth;
     const distance = wrapperWidth + textWidth;
     const startX = wrapperWidth;
-    const endX = -textWidth;
     const newX = startX - distance * progress;
-      
-    // 자막 애니메이션 재조정
+  
+    // ✅ newsEl을 통째로 교체해서 애니메이션 상태 초기화
+    const newNewsEl = newsEl.cloneNode(true);
+    newsEl.parentNode.replaceChild(newNewsEl, newsEl);
+    newsEl = newNewsEl;
+  
+    // 되감은 시점에서 자막 위치 지정
     newsEl.style.animation = "none";
     newsEl.style.transform = `translateX(${newX}px)`;
     newsEl.offsetHeight; // 강제 리플로우
