@@ -2,20 +2,10 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>뉴스2 + 음성</title>
+  <title>뉴스2</title>
   <style>
-    body {
-      margin: 0;
-      background: transparent;
-      overflow: hidden;
-    }
-    #wrapper {
-      position: fixed;
-      top: 0;
-      left: 0;
-      transform: translateY(-8px);
-      z-index: 9999;
-    }
+    body { margin: 0; background: transparent; overflow: hidden; }
+    #wrapper { position: fixed; top: 0; left: 0; transform: translateY(-8px); z-index: 9999; }
     #news {
       position: fixed;
       top: 0;
@@ -25,11 +15,10 @@
       font-size: 28px;
       color: white;
       font-weight: bold;
-      text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black,
-                   -1px -1px black, -1px 1px black, 1px -1px black, 1px 1px black;
+      text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black, -1px -1px black, -1px 1px black, 1px -1px black, 1px 1px black;
       will-change: transform;
       backface-visibility: hidden;
-      animation: scroll 120s linear infinite; /* 스크롤 속도 조절 */
+      animation: scroll 120s linear infinite;
       z-index: 9999;
     }
     @keyframes scroll {
@@ -37,6 +26,9 @@
       100% { transform: translateX(-100%); }
     }
   </style>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
   <div id="wrapper">
@@ -44,62 +36,58 @@
   </div>
   
   <script>
-  const newsEl = document.getElementById("news");
-  let lastNews = "";
-  let speaking = false;
+    let lastNews = "";
 
-  // 🗣 브라우저 TTS로 뉴스 제목들을 읽기
-  function speakNews(text) {
-    if (!text) return;
-
-    // 이전 음성 재생 중지
-    window.speechSynthesis.cancel();
-
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = "ko-KR";  // 한국어
-    utter.rate = 1.1;      // 뉴스 느낌 살리기 위해 약간 빠르게
-    utter.pitch = 1.0;
-    utter.volume = 1.0;
-
-    // 사용 가능한 음성 중 ko-KR 찾기
-    const voices = speechSynthesis.getVoices();
-    const koreanVoice = voices.find(v => v.lang.startsWith("ko"));
-    if (koreanVoice) utter.voice = koreanVoice;
-
-    speaking = true;
-    utter.onend = () => { speaking = false; };
-
-    speechSynthesis.speak(utter);
-  }
-
-  // 📰 RSS 뉴스 가져오기
-  async function loadNews() {
-    try {
-      const res = await fetch("https://api.rss2json.com/v1/api.json?rss_url=https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko");
-      const data = await res.json();
-      if (!data.items) return;
-
-      const newsTitles = data.items.map(i => i.title);
-      const newsText = newsTitles.join("   |   ");
-
-      if (newsText !== lastNews) {  // 변경된 경우에만 적용
-        newsEl.innerText = newsText;
-        lastNews = newsText;
-        speakNews(newsTitles.join("。 ")); // 점(。)으로 끊어서 낭독
+    // --- 뉴스 로딩 ---
+    async function loadNews() {
+      try {
+        let res = await fetch("https://api.rss2json.com/v1/api.json?rss_url=https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko");
+        let data = await res.json();
+        let newsText = data.items.map(i => i.title).join("   |   ");
+        if (newsText !== lastNews) {
+          document.getElementById("news").innerText = newsText;
+          lastNews = newsText;
+        }
+      } catch (e) {
+        console.error("뉴스 불러오기 실패", e);
       }
-    } catch (e) {
-      console.error("뉴스 불러오기 실패", e);
     }
-  }
+    loadNews();
+    setInterval(loadNews, 300000); // 5분마다
 
-  // ✅ 일부 브라우저에서는 음성 리스트가 늦게 로딩됨
-  if (speechSynthesis.onvoiceschanged !== undefined) {
-    speechSynthesis.onvoiceschanged = () => {};
-  }
+    // --- Firebase 초기화 ---
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "SENDER_ID",
+      appId: "APP_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-  // 초기 실행
-  loadNews();
-  setInterval(loadNews, 300000); // 5분마다 갱신
+    // --- TTS 재생 함수 ---
+    function speakText(text) {
+      if (!text) return;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = "ko-KR"; // 한국어
+      utter.rate = 1;        // 속도
+      utter.pitch = 1;       // 음높이
+      speechSynthesis.cancel(); // 이전 TTS 중지
+      speechSynthesis.speak(utter);
+    }
+
+    // --- Firebase 버튼 감지 ---
+    const ttsRef = db.ref("ttsButton"); // 실시간 DB 경로
+    ttsRef.on("value", snapshot => {
+      const value = snapshot.val();
+      if (value === true) {
+        speakText(lastNews); // 버튼 눌리면 최신 뉴스 읽기
+        ttsRef.set(false);   // 한 번 읽은 후 버튼 초기화
+      }
+    });
   </script>
 </body>
 </html>
