@@ -37,11 +37,12 @@
     const db = firebase.database();
     const ttsRef = db.ref("ttsButton");
 
-    // 버튼 클릭 시 Firebase에 true 보내기
+    // 버튼 클릭 시 timestamp 전송
     document.getElementById("playBtn").addEventListener("click", async () => {
       try {
-        await ttsRef.set(true);
-        console.log("TTS 재생/정지 신호 전송 완료");
+        const ts = Date.now();
+        await ttsRef.set(ts);
+        console.log("TTS 신호 전송:", ts);
       } catch(err) { console.error(err); }
     });
   </script>
