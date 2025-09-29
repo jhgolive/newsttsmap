@@ -2,59 +2,27 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>뉴스2</title>
+  <title>뉴스 TTS 컨트롤</title>
   <style>
-    body { margin: 0; background: transparent; overflow: hidden; }
-    #wrapper { position: fixed; top: 0; left: 0; transform: translateY(-8px); z-index: 9999; }
-    #news {
-      position: fixed;
-      top: 0;
-      left: 0;
-      white-space: nowrap;
-      display: inline-block;
-      font-size: 28px;
-      color: white;
-      font-weight: bold;
-      text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black, -1px -1px black, -1px 1px black, 1px -1px black, 1px 1px black;
-      will-change: transform;
-      backface-visibility: hidden;
-      animation: scroll 120s linear infinite;
-      z-index: 9999;
+    body {
+      display:flex; flex-direction:column; justify-content:center; align-items:center;
+      height:100vh; font-family:Arial, sans-serif; background:#222; color:#fff; margin:0;
     }
-    @keyframes scroll {
-      0% { transform: translateX(100vw); }
-      100% { transform: translateX(-100%); }
+    button {
+      padding:20px 40px; font-size:24px; border:none; border-radius:12px; cursor:pointer;
+      margin:10px; background-color:#ff5722; color:white; transition:background 0.2s;
     }
+    button:hover { background-color:#e64a19; }
   </style>
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
-  <div id="wrapper">
-    <div id="news">뉴스 로딩 중...</div>
-  </div>
-  
+  <h1>뉴스 TTS 컨트롤</h1>
+  <button id="playBtn">▶ 재생/정지</button>
+
   <script>
-    let lastNews = "";
-
-    // --- 뉴스 로딩 ---
-    async function loadNews() {
-      try {
-        let res = await fetch("https://api.rss2json.com/v1/api.json?rss_url=https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko");
-        let data = await res.json();
-        let newsText = data.items.map(i => i.title).join("   |   ");
-        if (newsText !== lastNews) {
-          document.getElementById("news").innerText = newsText;
-          lastNews = newsText;
-        }
-      } catch (e) {
-        console.error("뉴스 불러오기 실패", e);
-      }
-    }
-    loadNews();
-    setInterval(loadNews, 300000); // 5분마다
-
     // --- Firebase 초기화 ---
     const firebaseConfig = {
       apiKey: "AIzaSyAQGtOEcxFxl9FV7NASLgxLDc23u2vzS_0",
@@ -67,26 +35,14 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    const ttsRef = db.ref("ttsButton");
 
-    // --- TTS 재생 함수 ---
-    function speakText(text) {
-      if (!text) return;
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = "ko-KR"; // 한국어
-      utter.rate = 1;        // 속도
-      utter.pitch = 1;       // 음높이
-      speechSynthesis.cancel(); // 이전 TTS 중지
-      speechSynthesis.speak(utter);
-    }
-
-    // --- Firebase 버튼 감지 ---
-    const ttsRef = db.ref("ttsButton"); // 실시간 DB 경로
-    ttsRef.on("value", snapshot => {
-      const value = snapshot.val();
-      if (value === true) {
-        speakText(lastNews); // 버튼 눌리면 최신 뉴스 읽기
-        ttsRef.set(false);   // 한 번 읽은 후 버튼 초기화
-      }
+    // 버튼 클릭 시 Firebase에 true 보내기
+    document.getElementById("playBtn").addEventListener("click", async () => {
+      try {
+        await ttsRef.set(true);
+        console.log("TTS 재생/정지 신호 전송 완료");
+      } catch(err) { console.error(err); }
     });
   </script>
 </body>
