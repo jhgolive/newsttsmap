@@ -43,7 +43,7 @@
 </style>
 </head>
 <body>
-<div id="wrapper">
+222<div id="wrapper">
   <div id="news">뉴스 로딩 중...</div>
 </div>
 
@@ -104,11 +104,6 @@ onValue(ref(db, "ttsControl"), (snap) => {
     const startX = wrapperWidth;
     const endX = -textWidth;
     const newX = startX - distance * progress;
-
-    // ✅ 자막 요소 리셋 (애니메이션 꼬임 방지)
-    const newNewsEl = newsEl.cloneNode(true);
-    newsEl.parentNode.replaceChild(newNewsEl, newsEl);
-    newsEl = newNewsEl; // 변수도 새 엘리먼트로 교체
       
     // 자막 애니메이션 재조정
     newsEl.style.animation = "none";
