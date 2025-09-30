@@ -2,8 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<link rel="icon" href="data:,">
-<title>뉴스 남자음성 컨트롤</title>
+<title>뉴스 남자음성</title>
 <style>
   body {
     margin: 0;
@@ -43,16 +42,15 @@
 </style>
 </head>
 <body>
-777<div id="wrapper">
+222<div id="wrapper">
   <div id="news">뉴스 로딩 중...</div>
 </div>
 
-<audio id="ttsAudio" playsinline muted></audio>
+<audio id="ttsAudio" playsinline></audio>
 
 <script type="module">
-//--------------------------뉴스컨트롤----------------------------------
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAQGtOEcxFxl9FV7NASLgxLDc23u2vzS_0",
@@ -67,87 +65,25 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+const newsEl = document.getElementById("news");
 const audioEl = document.getElementById("ttsAudio");
-let newsEl = document.getElementById("news");
-
-// 사용자가 처음 클릭할 때만 재생 허용
-let userInteracted = false;
-document.addEventListener("click", async () => {
-  if (!userInteracted) {
-    userInteracted = true;
-    try {
-      await audioEl.play(); // 클릭 후 오디오 재생 시도
-    } catch (err) {
-      console.warn("Autoplay blocked:", err);
-    }
-  }
-}, { once: true });
-
-// Firebase 실시간 감시
-onValue(ref(db, "ttsControl"), (snap) => {
-  const control = snap.val();
-  if (!control) return;
-
-  // ▶ / ⏸ 제어
-  if (control.playing === false) {
-    audioEl.pause();
-    newsEl.style.animationPlayState = "paused";
-  } else if (control.playing === true && userInteracted) {
-    audioEl.play();
-    newsEl.style.animationPlayState = "running";
-  }
-
-  // 🔊 볼륨 제어
-  if (typeof control.volume === "number") {
-    audioEl.volume = control.volume;
-  }
-
-  // ⏪ 되감기 제어 (수정 최종)
-  if (typeof control.back === "number" && control.back < 0) {
-    if (!newsEl || !newsEl.parentElement) return;
-    const newTime = Math.max(0, audioEl.currentTime + control.back);
-    audioEl.currentTime = newTime;
-  
-    // 진행률 계산
-    const progress = newTime / audioEl.duration;
-  
-    // 위치 계산
-    const wrapperWidth = newsEl.parentElement.offsetWidth;
-    const textWidth = newsEl.offsetWidth;
-    const distance = wrapperWidth + textWidth;
-    const startX = wrapperWidth;
-    const newX = startX - distance * progress;
-  
-    // ✅ newsEl을 통째로 교체해서 애니메이션 상태 초기화
-    const newNewsEl = newsEl.cloneNode(true);
-    newsEl.parentNode.replaceChild(newNewsEl, newsEl);
-    newsEl = newNewsEl;
-  
-    // 되감은 시점에서 자막 위치 지정
-    newsEl.style.animation = "none";
-    newsEl.style.transform = `translateX(${newX}px)`;
-    newsEl.offsetHeight; // 강제 리플로우
-  
-    const remainingTime = audioEl.duration - newTime;
-    newsEl.style.animation = `scroll ${remainingTime}s linear 1`;
-    newsEl.style.animationPlayState = audioEl.paused ? "paused" : "running";
-  
-    update(ref(db, "ttsControl"), { back: 0 }); // Firebase 값 리셋
-  }
-});
-//-----------------------------------------------------------
-//const newsEl = document.getElementById("news");
-//const audioEl = document.getElementById("ttsAudio");
 
 const NEWS_API = "https://newstts2-production.up.railway.app/news";
 const TTS_API = "https://newstts2-production.up.railway.app/news-tts";
 
-// 뉴스 불러오기
+let ctx = null;
+let gainNode = null;
+let currentVolume = 0.5;   // Firebase에서 실시간 제어됨
+let currentText = "";
+let isPlaying = false;
+
+// ✅ 뉴스 불러오기
 async function loadNews() {
   try {
     const res = await fetch(NEWS_API);
     const data = await res.json();
     if (data.news) {
+      currentText = data.news;
       startScrollAndTTS(data.news);
     }
   } catch (err) {
@@ -155,7 +91,7 @@ async function loadNews() {
   }
 }
 
-// 스크롤 + TTS 동기화
+// ✅ 스크롤 + TTS 시작
 async function startScrollAndTTS(text) {
   newsEl.textContent = text;
 
@@ -163,44 +99,86 @@ async function startScrollAndTTS(text) {
   const ttsRes = await fetch(TTS_API);
   const ttsBlob = await ttsRes.blob();
   audioEl.src = URL.createObjectURL(ttsBlob);
-  audioEl.pause();
   audioEl.currentTime = 0;
 
-  // mp3 로딩 후 재생 준비
+  // Web Audio 초기화 (한 번만)
+  if (!ctx) {
+    ctx = new AudioContext();
+    const source = ctx.createMediaElementSource(audioEl);
+    gainNode = ctx.createGain();
+    gainNode.gain.value = currentVolume;
+    source.connect(gainNode).connect(ctx.destination);
+  }
+
   audioEl.onloadedmetadata = () => {
     const duration = audioEl.duration;
-
-    // 스크롤 속도 계산
     const wrapperWidth = newsEl.parentElement.offsetWidth;
     const textWidth = newsEl.offsetWidth;
     const distance = wrapperWidth + textWidth;
-    
-    newsEl.style.animation = "none"; // 기존 애니메이션 초기화
-    newsEl.offsetHeight; // 리플로우 강제
+
+    newsEl.style.animation = "none";
+    newsEl.offsetHeight;
     newsEl.style.animation = `scroll ${duration}s linear 1`;
 
-    // Web Audio API로 볼륨 제어
-    const ctx = new AudioContext();
-    const source = ctx.createMediaElementSource(audioEl);
-    const gainNode = ctx.createGain();
-    gainNode.gain.value = 0.5; // 원하는 볼륨 (0.0 ~ 1.0)
-    source.connect(gainNode).connect(ctx.destination);
-    
-    // 3초 딜레이 후 TTS 재생
-    setTimeout(() => {
-      ctx.resume(); // 일부 브라우저에서 필요
+    if (isPlaying) {
+      ctx.resume();
       audioEl.play().catch(err => console.warn(err));
-    }, 3000);
+    }
   };
 
-  // 스크롤 끝나면 다음 뉴스
   newsEl.addEventListener("animationend", function handler() {
     newsEl.removeEventListener("animationend", handler);
-    loadNews();
+    loadNews();  // 다음 뉴스
   });
 }
 
-// 초기 실행
+// ✅ Firebase 제어 구독
+onValue(ref(db, "ttsControl"), (snapshot) => {
+  const data = snapshot.val();
+  if (!data) return;
+
+  // 🔸 재생/일시정지
+  if (typeof data.playing === "boolean") {
+    isPlaying = data.playing;
+    if (isPlaying) {
+      ctx?.resume();
+      audioEl.play().catch(err => console.warn(err));
+      newsEl.style.animationPlayState = "running";
+    } else {
+      audioEl.pause();
+      newsEl.style.animationPlayState = "paused";
+    }
+  }
+
+  // 🔸 볼륨 제어
+  if (typeof data.volume === "number") {
+    currentVolume = Math.min(1, Math.max(0, data.volume));
+    if (gainNode) {
+      gainNode.gain.value = currentVolume;
+    }
+  }
+
+  // 🔸 뒤로가기
+  if (typeof data.back === "number") {
+    const newTime = Math.max(0, audioEl.currentTime + data.back);
+    audioEl.currentTime = newTime;
+    // 스크롤 위치도 동기화
+    const totalDuration = audioEl.duration || 1;
+    const progress = newTime / totalDuration;
+    const wrapperWidth = newsEl.parentElement.offsetWidth;
+    const textWidth = newsEl.offsetWidth;
+    const distance = wrapperWidth + textWidth;
+    const newX = wrapperWidth - distance * progress;
+    newsEl.style.animation = "none";
+    newsEl.style.transform = `translateX(${newX}px)`;
+    newsEl.offsetHeight;
+    const remaining = totalDuration - newTime;
+    newsEl.style.animation = `scroll ${remaining}s linear`;
+    newsEl.style.animationPlayState = isPlaying ? "running" : "paused";
+  }
+});
+
+// 초기 시작
 loadNews();
 </script>
 </body>
