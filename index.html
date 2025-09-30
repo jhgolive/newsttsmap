@@ -103,9 +103,9 @@ onValue(ref(db, "ttsControl"), (snap) => {
   }
 
   // ⏪ 되감기 제어 (수정 최종)
-  if (typeof control.seek === "number" && control.seek < 0) {
+  if (typeof control.back === "number" && control.back < 0) {
     if (!newsEl || !newsEl.parentElement) return;
-    const newTime = Math.max(0, audioEl.currentTime + control.seek);
+    const newTime = Math.max(0, audioEl.currentTime + control.back);
     audioEl.currentTime = newTime;
   
     // 진행률 계산
@@ -132,7 +132,7 @@ onValue(ref(db, "ttsControl"), (snap) => {
     newsEl.style.animation = `scroll ${remainingTime}s linear 1`;
     newsEl.style.animationPlayState = audioEl.paused ? "paused" : "running";
   
-    update(ref(db, "ttsControl"), { seek: 0 }); // Firebase 값 리셋
+    update(ref(db, "ttsControl"), { back: 0 }); // Firebase 값 리셋
   }
 });
 //-----------------------------------------------------------
