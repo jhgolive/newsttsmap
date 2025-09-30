@@ -42,15 +42,15 @@
 </style>
 </head>
 <body>
-555<div id="wrapper">
+777<div id="wrapper">
   <div id="news">뉴스 로딩 중...</div>
 </div>
 
 <audio id="ttsAudio" playsinline></audio>
 
-<!-- Firebase CDN -->
-<script src="https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js"></script>
+<!-- Firebase compat CDN -->
+<script src="https://www.gstatic.com/firebasejs/12.1.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.1.0/firebase-database-compat.js"></script>
 
 <script>
 const firebaseConfig = {
@@ -68,15 +68,12 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const ttsControlRef = db.ref("ttsControl");
 
-// 요소 가져오기
+// 요소
 const newsEl = document.getElementById("news");
 const audioEl = document.getElementById("ttsAudio");
 
 let audioCtx, gainNode;
 let lastBackTime = 0;
-
-// 초기 볼륨 세팅
-let currentVolume = 0.5;
 
 // Firebase 구독
 ttsControlRef.on("value", snapshot => {
@@ -109,7 +106,7 @@ async function resumeAudio() {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const source = audioCtx.createMediaElementSource(audioEl);
     gainNode = audioCtx.createGain();
-    gainNode.gain.value = currentVolume;
+    gainNode.gain.value = 0.5;
     source.connect(gainNode).connect(audioCtx.destination);
   }
   if (audioCtx.state === "suspended") await audioCtx.resume();
@@ -131,7 +128,6 @@ async function loadNews() {
 async function startScrollAndTTS(text) {
   newsEl.textContent = text;
 
-  // TTS mp3 가져오기
   try {
     const ttsRes = await fetch("https://newstts2-production.up.railway.app/news-tts");
     const ttsBlob = await ttsRes.blob();
@@ -145,11 +141,11 @@ async function startScrollAndTTS(text) {
       const textWidth = newsEl.offsetWidth;
 
       newsEl.style.animation = "none";
-      newsEl.offsetHeight; // 리플로우 강제
+      newsEl.offsetHeight; // 리플로우
       newsEl.style.animation = `scroll ${duration}s linear 1`;
 
       await resumeAudio();
-      // 초기 재생: Firebase playing 값 확인 후
+      // Firebase playing 값 확인 후 자동 재생
       db.ref("ttsControl/playing").once("value").then(snap=>{
         if (snap.val()) audioEl.play().catch(e=>console.warn(e));
       });
