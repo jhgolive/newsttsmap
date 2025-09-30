@@ -42,7 +42,7 @@
 </style>
 </head>
 <body>
-888<div id="wrapper">
+222<div id="wrapper">
   <div id="news">뉴스 로딩 중...</div>
 </div>
 
@@ -70,6 +70,7 @@ const audioEl = document.getElementById("ttsAudio");
 
 let lastNews = "뉴스 로딩 중...";
 let ctx, source, gainNode;
+let ttsLoaded = false; // mp3 한 번만 로드 상태
 
 // Web Audio API 준비
 function setupAudio() {
@@ -103,10 +104,10 @@ onValue(ref(db, "ttsControl"), (snapshot) => {
   }
 });
 
-// 뉴스 불러오기
 const NEWS_API = "https://newstts2-production.up.railway.app/news";
 const TTS_API = "https://newstts2-production.up.railway.app/news-tts";
 
+// 뉴스 불러오기
 async function loadNews() {
   try {
     const res = await fetch(NEWS_API);
@@ -122,12 +123,16 @@ async function startScrollAndTTS(text) {
   newsEl.textContent = text;
   if (!ctx) setupAudio();
 
-  // TTS mp3 받아오기
-  const ttsRes = await fetch(TTS_API);
-  const ttsBlob = await ttsRes.blob();
-  audioEl.src = URL.createObjectURL(ttsBlob);
-  audioEl.pause();
-  audioEl.currentTime = 0;
+  // 새로운 뉴스면만 mp3 새로 로드
+  if (!ttsLoaded || audioEl.src === "" || audioEl.dataset.news !== text) {
+    const ttsRes = await fetch(TTS_API);
+    const ttsBlob = await ttsRes.blob();
+    audioEl.src = URL.createObjectURL(ttsBlob);
+    audioEl.dataset.news = text; // 현재 뉴스 표시
+    audioEl.pause();
+    audioEl.currentTime = 0;
+    ttsLoaded = true;
+  }
 
   audioEl.onloadedmetadata = () => {
     const duration = audioEl.duration;
@@ -138,10 +143,10 @@ async function startScrollAndTTS(text) {
     newsEl.style.animation = "none";
     newsEl.offsetHeight; // 리플로우
     newsEl.style.animation = `scroll ${duration}s linear 1`;
-    newsEl.style.animationPlayState = "paused"; // 기본 일시정지
+    // Firebase playing 값에 따라 자동 일시정지/재생 적용
   };
 
-  // 끝나면 다음 뉴스
+  // 뉴스 끝나면 다음 뉴스
   newsEl.addEventListener("animationend", function handler() {
     newsEl.removeEventListener("animationend", handler);
     loadNews();
