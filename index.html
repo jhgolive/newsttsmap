@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>뉴스 남자음성 (Firebase 제어)</title>
+<title>뉴스 남자음성</title>
 <style>
   body {
     margin: 0;
@@ -42,7 +42,7 @@
 </style>
 </head>
 <body>
-<div id="wrapper">
+555<div id="wrapper">
   <div id="news">뉴스 로딩 중...</div>
 </div>
 
@@ -52,7 +52,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
 
-/* ✅ Firebase 설정 */
+// ✅ Firebase 연결
 const firebaseConfig = {
   apiKey: "AIzaSyAQGtOEcxFxl9FV7NASLgxLDc23u2vzS_0",
   authDomain: "mygps-11798.firebaseapp.com",
@@ -62,110 +62,131 @@ const firebaseConfig = {
   messagingSenderId: "271371741627",
   appId: "1:271371741627:web:642901f43c5ad57d80bc9e"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* DOM 요소 */
 const newsEl = document.getElementById("news");
 const audioEl = document.getElementById("ttsAudio");
 
-/* 전역 상태 */
-let currentVolume = 0.5;
-let isPlaying = false;
-let currentNewsText = "";
-let ttsLoaded = false;
+const NEWS_API = "https://newstts2-production.up.railway.app/news";
+const TTS_API = "https://newstts2-production.up.railway.app/news-tts";
 
-/* Web Audio API로 볼륨 제어 */
-const audioCtx = new AudioContext();
-const source = audioCtx.createMediaElementSource(audioEl);
-const gainNode = audioCtx.createGain();
-gainNode.gain.value = currentVolume;
-source.connect(gainNode).connect(audioCtx.destination);
+let scrollPaused = false;
+let currentAnimation = null;
+let animationStartTime = 0;
+let pausedTime = 0;
+let animationDuration = 0;
 
-/* Firebase 제어값 감시 */
-const controlRef = ref(db, "ttsControl");
-onValue(controlRef, snapshot => {
-  const data = snapshot.val();
-  if (!data) return;
-  handleControl(data);
-});
-
-/* 제어 신호 처리 */
-function handleControl(data) {
-  if (data.volume !== undefined) {
-    currentVolume = Math.min(1, Math.max(0, data.volume));
-    gainNode.gain.value = currentVolume;
-  }
-
-  if (data.back !== undefined) {
-    audioEl.currentTime = Math.max(0, audioEl.currentTime + data.back);
-  }
-
-  if (data.playing === true && !isPlaying) {
-    isPlaying = true;
-    startScrollAndTTS(currentNewsText);
-  } else if (data.playing === false && isPlaying) {
-    isPlaying = false;
-    pauseScrollAndTTS();
-  }
-}
-
-/* 뉴스 로드 */
+// 뉴스 불러오기
 async function loadNews() {
   try {
-    const res = await fetch("https://newstts2-production.up.railway.app/news");
+    const res = await fetch(NEWS_API);
     const data = await res.json();
     if (data.news) {
-      currentNewsText = data.news;
-      await prepareTTS(currentNewsText);
+      startScrollAndTTS(data.news);
     }
   } catch (err) {
     console.error("뉴스 불러오기 실패", err);
   }
 }
 
-/* TTS 미리 준비 */
-async function prepareTTS(text) {
+// 스크롤 + TTS 동기화
+async function startScrollAndTTS(text) {
   newsEl.textContent = text;
-  const ttsRes = await fetch("https://newstts2-production.up.railway.app/news-tts");
-  const blob = await ttsRes.blob();
-  audioEl.src = URL.createObjectURL(blob);
-  ttsLoaded = true;
-}
 
-/* 재생 시작 */
-function startScrollAndTTS(text) {
-  if (!ttsLoaded) return;
+  const ttsRes = await fetch(TTS_API);
+  const ttsBlob = await ttsRes.blob();
+  audioEl.src = URL.createObjectURL(ttsBlob);
+  audioEl.pause();
+  audioEl.currentTime = 0;
 
-  const wrapperWidth = newsEl.parentElement.offsetWidth;
-  const textWidth = newsEl.offsetWidth;
-  const duration = audioEl.duration;
+  audioEl.onloadedmetadata = () => {
+    animationDuration = audioEl.duration;
+    const wrapperWidth = newsEl.parentElement.offsetWidth;
+    const textWidth = newsEl.offsetWidth;
 
-  // 스크롤 애니메이션 재시작
-  newsEl.style.animation = "none";
-  newsEl.offsetHeight; // 리플로우
-  newsEl.style.animation = `scroll ${duration}s linear 1`;
-  newsEl.style.animationPlayState = "running";
+    newsEl.style.animation = "none";
+    newsEl.offsetHeight; // 리플로우
+    newsEl.style.animation = `scroll ${animationDuration}s linear 1`;
 
-  audioCtx.resume();
-  audioEl.play().catch(err => console.warn(err));
+    // 애니메이션 시작 시간 기록
+    animationStartTime = performance.now();
+    currentAnimation = newsEl.getAnimations()[0];
 
-  // 끝나면 다음 뉴스 로드
+    // 오디오 볼륨 초기값
+    audioEl.volume = 0.5;
+
+    // 3초 후 재생 시작
+    setTimeout(() => {
+      audioEl.play().catch(e=>console.warn(e));
+    }, 3000);
+  };
+
   newsEl.addEventListener("animationend", function handler() {
     newsEl.removeEventListener("animationend", handler);
-    isPlaying = false;
-    loadNews();
+    loadNews(); // 다음 뉴스
   });
 }
 
-/* 일시정지 */
-function pauseScrollAndTTS() {
-  audioEl.pause();
-  newsEl.style.animationPlayState = "paused";
+// 🔸 Firebase ttsControl 실시간 감시
+onValue(ref(db, "ttsControl"), (snapshot) => {
+  const data = snapshot.val();
+  if (!data) return;
+
+  // ▶⏸ 재생/일시정지
+  if (typeof data.playing !== "undefined") {
+    if (data.playing) {
+      // 재생
+      audioEl.play().catch(e=>console.warn(e));
+      resumeScroll();
+    } else {
+      // 일시정지
+      audioEl.pause();
+      pauseScroll();
+    }
+  }
+
+  // 🔊 볼륨 조절
+  if (typeof data.volume === "number") {
+    audioEl.volume = data.volume;
+  }
+
+  // ⏪ 5초 뒤로가기
+  if (typeof data.back === "number" && data.back < 0) {
+    audioEl.currentTime = Math.max(0, audioEl.currentTime + data.back);
+    restartScrollFrom(audioEl.currentTime);
+  }
+});
+
+// 🔸 스크롤 일시정지
+function pauseScroll() {
+  if (scrollPaused) return;
+  const elapsed = (performance.now() - animationStartTime) / 1000;
+  pausedTime = elapsed;
+  if (currentAnimation) currentAnimation.pause();
+  scrollPaused = true;
 }
 
-/* 초기 뉴스 불러오기 */
+// 🔸 스크롤 재개
+function resumeScroll() {
+  if (!scrollPaused) return;
+  if (currentAnimation) currentAnimation.play();
+  scrollPaused = false;
+  animationStartTime = performance.now() - pausedTime * 1000;
+}
+
+// 🔸 오디오 현재 위치에 맞춰 스크롤 다시 시작
+function restartScrollFrom(currentTime) {
+  const remaining = animationDuration - currentTime;
+  newsEl.style.animation = "none";
+  newsEl.offsetHeight; // 리플로우
+  newsEl.style.animation = `scroll ${remaining}s linear 1`;
+  animationStartTime = performance.now() - currentTime * 1000;
+  currentAnimation = newsEl.getAnimations()[0];
+  if (scrollPaused) currentAnimation.pause();
+}
+
+// 초기 실행
 loadNews();
 </script>
 </body>
