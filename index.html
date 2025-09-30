@@ -453,32 +453,39 @@ body{margin:0;padding:0;min-height:100vh;}
 .gm-style-cc{bottom:-100px!important; right:-100px!important;}
 
 /* ----------------------- 뉴스 -------------------------- */
-#wrapper {
-  white-space: nowrap;
-  overflow: hidden;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 40px;
-  transform: translateY(-8px); /* 강제 위치 조정 */
-}
-#news {
-  display: inline-block;
-  font-size: 28px;
-  color: white;
-  font-weight: bold;
-  text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black,
-               -1px -1px black, -1px 1px black, 1px -1px black, 1px 1px black;
-  position: absolute;
-  top: 0;
-  white-space: nowrap;
-  will-change: transform;
-}
-@keyframes scroll {
-  from { transform: translateX(100vw); }
-  to { transform: translateX(-100%); }
-}
+  #wrapper {
+    white-space: nowrap;
+    overflow: hidden;
+    position: fixed;   /* 화면에 고정 */
+    top: 0;         /* 화면 상단 */
+    left: 0;
+    transform: translateY(-8px); /* 강제 위치 조정 */
+    width: calc(100vw - 200px); /* 화면 전체 - 지도 너비 */
+    height: 40px;
+    z-index: 9999;     /* 다른 요소보다 위에 */
+  }
+
+  #news {
+    display: inline-block;
+    font-size: 28px;
+    color: white;
+    font-weight: bold;
+    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black, 
+                 -1px -1px black, -1px 1px black, 1px -1px black, 1px 1px black;
+    will-change: transform;
+    backface-visibility: hidden;
+    position: absolute;
+    top: 0;
+    white-space: nowrap;
+    animation-name: scroll;
+    animation-timing-function: linear;
+    animation-iteration-count: 1; /* 한 번만 실행 */
+  }
+
+  @keyframes scroll {
+    from { transform: translateX(100vw); }
+    to { transform: translateX(-100%); }
+  }
 </style>
 </head>
 <body>
