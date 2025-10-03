@@ -179,7 +179,7 @@ function updateAddress(lat,lng){
             });
             let displayText="";
             if(width>430) displayText=[sido,sigungu,dong].filter(Boolean).join(" ");
-            else if(width>330) displayText=[sigungu,dong].filter(Boolean).join(" ");
+            else if(width>190) displayText=[sigungu,dong].filter(Boolean).join(" ");
             else displayText=dong||sigungu||sido;
             addressDiv.innerText=displayText;
         }else addressDiv.innerText="주소를 가져올 수 없음";
